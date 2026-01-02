@@ -1,11 +1,10 @@
 <div align="center">
   <a href="#">
-    <img
-      src="https://github.com/user-attachments/assets/3bf1ab31-f9c6-4362-b17d-1dfe7c414f17"
-      alt="Masquerade ORM Logo"
-      width="900"
-      height="900
-    />
+  <img
+  src="https://github.com/user-attachments/assets/3bf1ab31-f9c6-4362-b17d-1dfe7c414f17"
+  alt="Masquerade ORM Logo"
+  style="max-width: 100%; height: auto;"
+  />
   </a>
   <br><br>
   <a href="">
@@ -84,14 +83,15 @@ At the moment, this is the only class setting supported, but it may evolve in th
  
 **SQLite**  
 
-```
+```js
 import { DatabaseSync } from 'node:sqlite'   
 const yourDbConnection = new DatabaseSync('your-db-name')
 ```
 
 **Postgresql**
 
-```import pkg from 'pg'
+```js
+import pkg from 'pg'
 const { Pool } = pkg
 
 // Create a pool instance
@@ -105,19 +105,24 @@ const yourDbConnection = new Pool({
 ```
 
 #### 2) Configuration Object:
-```
+```js
 /**@typedef {import('masquerade').OrmConfigObj} OrmConfigObj*/
 
-//****JS****
-/** @type {OrmConfigObj} */ const ormConfig = 
-{
+/** @type {OrmConfigObj} */ const ormConfig = {
   dbConnection: yourDbConnection,
   primaryType: 'UUID', // | 'INT' | 'BIGINT'
   skipTableCreation: true // false by default
 }
+```
 
-//****TS****
-const ormConfig: OrmConfigObj = {//copy above}
+```ts
+import type { OrmConfigObj } from "masquerade"
+
+const ormConfig: OrmConfigObj = {
+  dbConnection: yourDbConnection,
+  primaryType: 'UUID', // | 'INT' | 'BIGINT'
+  skipTableCreation: true // false by default
+}
 ```
 
 primaryType sets the default id type on all classes, which can be overridden as explained in **'Setting Up - Class Definitions' section 5**.
