@@ -22,12 +22,12 @@ For example, **abstract ClassA** has two children, **abstract ClassB** and **non
 this means ClassD's table will inherit columns from both ClassA and ClassB, while ClassC's table will inherit columns from ClassA.
 
 #### 2) Making a Table Column Nullable:
-```
+```js
 /**@type {string | undefined}*/ propertyName
 ```   
 
 #### 3) Making a Table Column Unique:
-```
+```js
 /**@type {string | Unique}*/ propertyName
 ```   
 (you can import Unique from the package or just define ```type Unique = never```)
@@ -57,7 +57,7 @@ Each relational property will create a junction table named `className___propNam
 
 
 #### 5) Static ormClassSettings_ Property:
-```
+```js
 Static ormClassSettings_ = {idType: 'UUID' | 'INT' | 'BIGINT'} // or {primaryType: 'UUID' | 'INT' | 'BIGINT'}
 ``` 
 
@@ -72,14 +72,15 @@ At the moment, this is the only class setting supported, but it may evolve in th
  
 **SQLite**  
 
-```
+```js
 import { DatabaseSync } from 'node:sqlite'   
 const yourDbConnection = new DatabaseSync('your-db-name')
 ```
 
 **Postgresql**
 
-```import pkg from 'pg'
+```js
+import pkg from 'pg'
 const { Pool } = pkg
 
 // Create a pool instance
