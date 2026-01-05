@@ -28,9 +28,9 @@ this means ClassD's table will inherit columns from both ClassA and ClassB, whil
 
 #### 3) Making a Table Column Unique:
 ```js
+/**@typedef {import('masquerade').Unique} Unique*/
 /**@type {string | Unique}*/ propertyName
 ```   
-(you can import Unique from the package or just define ```type Unique = never```)
 
 
 #### 4) Relational Properties
@@ -39,18 +39,18 @@ Assuming we have the following classes extending Entity: User, Chat and Message.
 ```js
 class Example {
     // one-to-one relationship with a User instance
-    /** @type {User} */ prop1
+    /** @type {User} */ user
     
     // One-to-one relationship with a User instance.
     // May be undefined if no relationship is established yet. 
-    /** @type {User | undefined} */ prop2
+    /** @type {User | undefined} */ optionalUser
     
     // one-to-many relationship with Message instances
-    /** @type {Message[]} */ prop3
+    /** @type {Message[]} */ messages
     
     // One-to-many relationship with Chat instances.
     // May be undefined if no relationships are established yet.
-    /** @type {Chat[] | undefined} */ prop4
+    /** @type {Chat[] | undefined} */ optionalChats
 }
 ```
 Each relational property will create a junction table named `className___propName_jt`.
@@ -58,7 +58,7 @@ Each relational property will create a junction table named `className___propNam
 
 #### 5) Static ormClassSettings_ Property:
 ```js
-Static ormClassSettings_ = {idType: 'UUID' | 'INT' | 'BIGINT'} // or {primaryType: 'UUID' | 'INT' | 'BIGINT'}
+Static ormClassSettings_ = {idTypeDefault: 'UUID' } // | 'INT' | 'BIGINT'
 ``` 
 
 The above code lets you override the default id type that is assigned to all Entity's descendants (this will be elaborated on in the next section).    
@@ -80,8 +80,7 @@ const yourDbConnection = new DatabaseSync('your-db-name')
 **Postgresql**
 
 ```js
-import pkg from 'pg'
-const { Pool } = pkg
+import { Pool } from 'pg'
 
 // Create a pool instance
 const yourDbConnection = new Pool({
@@ -97,11 +96,11 @@ const yourDbConnection = new Pool({
 ```js
 /**@typedef {import('masquerade').OrmConfigObj} OrmConfigObj*/
 
-/** @type {OrmConfigObj} */ const ormConfig = {
+const ormConfig: OrmConfigObj = { 
     dbConnection: yourDbConnection,
-    primaryType: 'UUID', // | 'INT' | 'BIGINT'
-    skipTableCreation: true // optional, false by default
-}
+    idTypeDefault: 'UUID', // | 'INT' | 'BIGINT'
+    skipTableCreation: true // false by default
+  }
 ```
 
 primaryType sets the default id type on all classes, which can be overridden as explained in **'Defining Classes' - section 5**.
