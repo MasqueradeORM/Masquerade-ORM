@@ -32,9 +32,9 @@ propertyName?: string // or propertyName: string | undefined
 #### 3) Making a Table Column Unique:
 
 ```ts
+import type { Unique } from "masquerade"
 propertyName: string | Unique
 ```   
-(you can import Unique from the package or just define ```type Unique = never```)
 
 #### 4) Relational Properties
 Assuming we have the following classes extending Entity: User, Chat and Message.    
@@ -42,25 +42,25 @@ Assuming we have the following classes extending Entity: User, Chat and Message.
 ```ts
 class Example {
     // one-to-one relationship with a User instance
-    prop1: User
+    user: User
 
     // one-to-one relationship with a User instance,
     // but may be undefined if no relationship is established yet
-    prop2?: User
+    optionalUser?: User
 
     // one-to-many relationship with Message instances
-    prop3: Message[]
+    messages: Message[]
 
     // one-to-many relationship with Chat instances,
     // but may be undefined if no relationships are established yet
-    prop4?: Chat[]
+    optionalChats?: Chat[]
 }
 ```
 Each relational property will create a junction table named `className___propName_jt`.
 
 #### 5) Static ormClassSettings_ Property:
 ```ts
-Static ormClassSettings_ = {idType: 'UUID' | 'INT' | 'BIGINT'} // or {primaryType: 'UUID' | 'INT' | 'BIGINT'}
+Static ormClassSettings_ = {idType: 'UUID' } // | 'INT' | 'BIGINT'
 ``` 
 
 The above code lets you override the default id type that is assigned to all Entity's descendants (this will be elaborated on in the next section).    
@@ -82,16 +82,15 @@ const yourDbConnection = new DatabaseSync('your-db-name')
 **Postgresql**
 
 ```ts
-import pkg from 'pg'
-const { Pool } = pkg
+import { Pool } from 'pg'
 
 // Create a pool instance
-const yourDbConnection = new Pool({
-    user: 'your_db_user',         // e.g., 'postgres'
-    host: 'localhost',            // database host
-    database: 'your_db_name',     // database name
-    password: 'your_db_password', // your password
-    port: 5432,                   // default PostgreSQL port
+const pool = new Pool({
+  user: 'your_db_user',          // Database username
+  host: 'localhost',             // Database host (localhost or IP address)
+  database: 'your_db_name',      // Database name
+  password: 'your_db_password',  // Database password
+  port: 5432,                    // Port PostgreSQL is running on (default is 5432)
 })
 ```
 
@@ -101,7 +100,7 @@ import type { OrmConfigObj } from "masquerade"
 
 const ormConfig: OrmConfigObj = { 
     dbConnection: yourDbConnection,
-    primaryType: 'UUID', // | 'INT' | 'BIGINT'
+    idTypeDefault: 'UUID', // | 'INT' | 'BIGINT'
     skipTableCreation: true // false by default
   }
 ```
