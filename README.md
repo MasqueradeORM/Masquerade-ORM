@@ -162,6 +162,7 @@ console.log("Request fulfilled successfully.")
 - **[Getting Started - Typescript](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/getting-started-Typescript.md#class-definitions)**
 - **[Find Method](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/find.md#find)**
 - **[Saving to the Database](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/saving-to-database.md#saving-to-the-database)**
+- **[Deletion](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/deletion.md)**
 - **[Managing the Database](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/managing-the-database.md)**
 
 

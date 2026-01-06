@@ -105,9 +105,9 @@ export class Entity {
   //   }
   // }
 
-/**
-* Hard deletes the instance from the database.
-*/
+  /**
+  * Hard deletes the instance from the database.
+  */
   async delete() {
     const { dbConnection, classWikiDict, dependentsMapsObj, dbChangesObj } = OrmStore.store
     if (!dbConnection) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
@@ -130,8 +130,8 @@ export class Entity {
     emitter.dispatchEvent(
       new CustomEvent("delete", {
         detail: {
-          id: id4Deletion,
-        },
+          id: id4Deletion
+        }
       }))
 
     let classWiki = classWikiDict[className]
@@ -151,12 +151,12 @@ export class Entity {
     if (dbChangesObj[className] && dbChangesObj[className][id4Deletion]) delete dbChangesObj[className][id4Deletion]
   }
 
-/**
- * A required pre-deletion step.
- * Finds all instances that have a one-to-one relation with the calling instance,
- * where the related property cannot be undefined.
- * These relations must be reassigned before the calling instance can be safely deleted.
- */
+  /**
+   * A required pre-deletion step.
+   * Finds all instances that have a one-to-one relation with the calling instance,
+   * where the related property cannot be undefined.
+   * These relations must be reassigned before the calling instance can be safely deleted.
+   */
   async getDependents() {
     if (!this.id) return undefined
     const returnedObj = {}
@@ -176,10 +176,10 @@ export class Entity {
     return returnedObj
   }
 
-/**
- * Finds all instances that have a relation with the calling instance,
- * This method is a superset of the getDependents method, and is not meant as a pre-deletion step, but as a utility.
- */
+  /**
+   * Finds all instances that have a relation with the calling instance,
+   * This method is a superset of the getDependents method, and is not meant as a pre-deletion step, but as a utility.
+   */
   async getReferencers() {
     if (!this.id) return undefined
     const returnedObj = {}
