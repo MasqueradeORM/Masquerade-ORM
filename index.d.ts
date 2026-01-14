@@ -1,7 +1,7 @@
-export {ORM} from "./ORM/ORM.js"
-export {Entity} from './entity/entity'
-export {DbManager} from "./ORM/DbManager.js"
-export {sql, AND, OR} from "./entity/find/where/whereArgsFunctions"
-export {MasqueradePlugin} from "./webpack/plugin.js"
-export {Unique, integer} from './misc/types.js'
-export {OrmConfigObj} from './misc/types.js'
+
+export {ORM} from "./src/ORM/ORM.js"
+export {Entity} from './src/entity/entity'
+export {DbManager} from "./src/ORM/DbManager"
+export {sql, AND, OR} from "./src/entity/find/where/whereArgsFunctions"
+export {MasqueradePlugin} from "./src/webpack/plugin"
+export {Unique, integer, OrmConfigObj} from './src/misc/types'

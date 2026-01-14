@@ -2,22 +2,25 @@ import { OrmStore } from "../misc/ormStore.js"
 import { handleRelationalChanges, handleUpserts, organizeChangeObj } from "./save.js"
 import { postgresSaveQuery } from "./sqlClients/postgres.js"
 import { sqliteSaveQuery } from "./sqlClients/sqlite.js"
+import { setImmediate } from "node:timers/promises";
 
 export class ChangeLogger {
     static scheduledFlush = false
+    static currentlySaving = false
     static flushChanges() {
         const dbChangesObj = OrmStore.store.dbChangesObj
         if (!Object.keys(dbChangesObj).length || this.scheduledFlush) return
         this.scheduledFlush = true
-        const func = async () => await ChangeLogger.save(dbChangesObj)
+        const func = async () => await ChangeLogger.save()
         //queueMicrotask(func)
-         setImmediate(func)
+        setImmediate(func)
     }
 
 
-    static async save(/**@type {any}*/ dbChanges = undefined) {
-        if (!dbChanges) dbChanges = OrmStore.store.dbChangesObj
-        else if (!Object.keys(dbChanges).length) return
+    static async save() {
+        const dbChanges = OrmStore.store.dbChangesObj
+        if (!Object.keys(dbChanges).length || ChangeLogger.currentlySaving) return
+        // ChangeLogger.currentlySaving = true
 
         let paramIndex = 1
         const { sqlClient, dbConnection } = OrmStore.store

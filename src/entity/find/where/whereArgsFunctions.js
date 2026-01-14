@@ -1,23 +1,24 @@
 
 /**
- * @template T
- * @typedef {import('../../../misc/classes').OrArray<T>} OrArray
- */
+* @template T
+* @typedef {import('../../../misc/classes').OrArray<T>} OrArray
+*/
+
 
 /**
- * @template T
- * @typedef {import('../../../misc/classes').AndArray<T>} AndArray
- */
+* @template T
+* @typedef {import('../../../misc/classes').AndArray<T>} AndArray
+*/
 
-/**@typedef {import('../../../misc/classes').SqlWhereObj} SqlWhereObj */
+/**@typedef {import('../../../misc/classes').SqlWhereObj} SqlWhereObjType */
 /**@typedef {import('../../../misc/classes').Alias} Alias */
 
-
+import { SqlWhereObj } from '../../../misc/classes.js'
 
 
 /**
  * @template T
- * @param {...T | undefined | OrArray<T | SqlWhereObj>} values 
+ * @param {...T | undefined | OrArray<T | SqlWhereObjType>} values 
  * @returns {AndArray<T>}
  */
 export function AND(...values) {
@@ -28,7 +29,7 @@ export function AND(...values) {
 
 /**
  * @template T
- * @param {...T | undefined | AndArray<T | SqlWhereObj>} values 
+ * @param {...T | undefined | AndArray<T | SqlWhereObjType>} values 
  * @returns {OrArray<T>}
  */
 export function OR(...values) {

@@ -1,5 +1,5 @@
 import { Alias, aliasSymb, AndArray, OrArray, SqlWhereObj } from './classes.js';
-import { js2db } from './constants.js';
+import { floatColumnTypes, js2db } from './constants.js';
 
 export function nonSnake2Snake(/**@type {string}*/ str) {
     if (str.at(0) === str.at(0)?.toUpperCase()) {
@@ -27,9 +27,11 @@ export function postgres2sqliteQueryStr(queryString) {
     return queryString.replace(/\$\d+/g, '?')
 }
 
-export function js2SqlTyping(sqlClient, /**@type {string | undefined}*/ type = undefined) {
+export function js2SqlTyping(sqlClient, /**@type {string | undefined}*/ type = undefined, isId = false) {
     if (!type) return js2db[sqlClient]
-    return js2db[sqlClient][type]
+    const returnedType = js2db[sqlClient][type]
+    if (isId && floatColumnTypes.includes(returnedType)) return 'INTEGER'
+    return returnedType
 }
 
 

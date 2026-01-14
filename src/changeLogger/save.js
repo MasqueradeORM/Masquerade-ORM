@@ -9,8 +9,9 @@ const idTypeSymb = Symbol(`idType`)
 
 export function successfullSaveOperation() {
   coloredBackgroundConsoleLog(`Save ran successfully.\n`, `success`)
-  OrmStore.store.dbChangesObj = {}
+  OrmStore.clearDbChanges()
   ChangeLogger.scheduledFlush = false
+  ChangeLogger.currentlySaving = false
 }
 
 function expandBuffer(arr, lengthAdded) {
@@ -53,8 +54,8 @@ export function handleRelationalChanges(tableName, tableChangesObj, queryObj, pa
   let addedIds = Object.entries(categorizedIds.added)
   let removedIds = Object.entries(categorizedIds.removed)
 
-  addedIds = addedIds.map(([joiningId, joinedIdArr]) => [typeIdObjectKey(joiningId, idTypeArr[0]), joinedIdArr])
-  removedIds = removedIds.map(([joiningId, joinedIdArr]) => [typeIdObjectKey(joiningId, idTypeArr[0]), joinedIdArr])
+  addedIds = addedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, idTypeArr[0]), joinedIdArr])
+  removedIds = removedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, idTypeArr[0]), joinedIdArr])
 
   if (addedIds.length) [target.newRelationsObj, paramIndex] = junctionTableInsertion(addedIds, tableName, paramIndex, sqlClient)
   if (removedIds.length) [target.deletedRelationsObj, paramIndex] = sqlClient === `postgresql`
@@ -102,7 +103,7 @@ export function handleUpserts(tableName, classChangesObj, queryObj, paramIndex, 
   return paramIndex
 }
 
-export function typeIdObjectKey(instanceId, idType) {
+export function typecastStringId(instanceId, idType) {
   if (idType === `number`) return parseInt(instanceId, 10)
   return instanceId
 }
@@ -134,13 +135,14 @@ function insertNewRows(newRows, tableName, queryObj, paramIndex, client) {
 function updateRows(updatedRows, tableName, queryObj, paramIndex, client) {
   /**@type {any}*/ const target = queryObj[tableName].update = { queryStrArr: [], params2dArr: [] }
   const snakedTableName = nonSnake2Snake(tableName)
+  const idType = OrmStore.getClassWiki(tableName).columns.id.type
 
   for (const row of updatedRows) {
-    const rowId = row.id
+    let rowId = row.id
     delete row.id
     const updatedColumns = Object.entries(row)
     //if (!updatedColumns.length) continue
-
+    rowId = typecastStringId(rowId, idType)
     let queryStr = ``
     let params = []
 

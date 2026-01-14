@@ -3,21 +3,19 @@ import { OrmStore } from "../misc/ormStore.js"
 import { setUpdatedAtValue } from "./instanceProxy.js"
 
 
-function objectProxySetHandler(instanceWithObj, targetProp, isInsideAnArray) {
-    const className = instanceWithObj.constructor.name
-    const classChangeObj = OrmStore.getClassChangeObj(className)
-
+function objectProxySetHandler(instanceWithObj, targetProp, isInsideAnArray, className) {
+    const classChangeObj = OrmStore.getClassChangesObj(className)
     const instanceId = instanceWithObj.id
     let newPropVal = instanceWithObj[targetProp].source_
     if (isInsideAnArray) newPropVal = JSON.stringify(newPropVal)
     if (classChangeObj[instanceId]) classChangeObj[instanceId][targetProp] = newPropVal
     else classChangeObj[instanceId] = { targetProp: newPropVal }
     setUpdatedAtValue(instanceWithObj, classChangeObj[instanceId])
-    ChangeLogger.flushChanges()
     return true
 }
 
 export function createObjectProxy(instanceWithObj, key4object, object, isInsideAnArray = false) {
+    const className = instanceWithObj.constructor.name
 
     return new Proxy(object, {
         get: (obj, key) => {
@@ -26,27 +24,25 @@ export function createObjectProxy(instanceWithObj, key4object, object, isInsideA
         },
         set: (obj, /**@type {string}*/ key, val) => {
             obj[key] = val
-            return objectProxySetHandler(instanceWithObj, key4object, isInsideAnArray)
+            return objectProxySetHandler(instanceWithObj, key4object, isInsideAnArray, className)
         },
         defineProperty: (obj, /**@type {string}*/ key, val) => {
             obj[key] = val
-            return objectProxySetHandler(instanceWithObj, key4object, isInsideAnArray)
+            return objectProxySetHandler(instanceWithObj, key4object, isInsideAnArray, className)
         },
         deleteProperty(obj, key) {
             const validProp = Object.hasOwn(obj, key)
             const returnedVal = Reflect.deleteProperty(obj, key)
             if (validProp) {
-                const className = instanceWithObj.constructor.name
-                const classChangeObj = OrmStore.getClassChangeObj(className)
+                const classChangeObj = OrmStore.getClassChangesObj(className)
                 const instanceChangeObj = classChangeObj[instanceWithObj.id] ??= {}
-                setUpdatedAtValue(instanceWithObj, instanceChangeObj)
                 let newValueOfTargetProp = isInsideAnArray ? [...instanceWithObj[key4object].source_] : instanceWithObj[key4object].source_
                 if (isInsideAnArray) {
                     newValueOfTargetProp.forEach((object, index) => newValueOfTargetProp[index] = object.source_)
                     newValueOfTargetProp = JSON.stringify(newValueOfTargetProp)
                 }
                 instanceChangeObj[key4object] = newValueOfTargetProp
-                ChangeLogger.flushChanges()
+                setUpdatedAtValue(instanceWithObj, instanceChangeObj)
             }
             return returnedVal
         }

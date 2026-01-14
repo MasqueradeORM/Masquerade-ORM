@@ -106,7 +106,7 @@ export class Entity {
   // }
 
   /**
-  * Hard deletes the instance from the database.
+  * Hard deletes the instance from the database. May require a pre-deletion step - the 'getDependents' method.
   */
   async delete() {
     const { dbConnection, classWikiDict, dependentsMapsObj, dbChangesObj } = OrmStore.store
@@ -114,16 +114,17 @@ export class Entity {
 
     const id4Deletion = this.id
     const className = this.constructor.name
+    let classWiki = classWikiDict[className]
+    const dependencyContext = classWiki[dependenciesSymb]
+    if (dependencyContext) {
+      let dependentsData
+      if (!dependentsMapsObj[className]) throwDeletionErr(className, id4Deletion)
+      else dependentsData = dependentsMapsObj[className].get(id4Deletion)
 
-    let dependentsData
-    if (!dependentsMapsObj[className]) throwDeletionErr(className, id4Deletion)
-    else dependentsData = dependentsMapsObj[className].get(id4Deletion)
-
-    if (!dependentsData) throwDeletionErr(className, id4Deletion)
-    dependentsData = dependentsData.deref()
-
-    const isValid = validateDependentDataDecoupling(dependentsData, id4Deletion)
-    if (!isValid) throwImproperDecouplingErr(className, id4Deletion)
+      dependentsData = dependentsData.deref()
+      const isValid = validateDependentDataDecoupling(dependentsData, id4Deletion)
+      if (!isValid) throwImproperDecouplingErr(className, id4Deletion)
+    }
 
     //@ts-ignore
     const emitter = this.eEmitter_
@@ -134,7 +135,6 @@ export class Entity {
         }
       }))
 
-    let classWiki = classWikiDict[className]
     let targetTableName
 
     if (classWiki.parent) {
@@ -149,14 +149,19 @@ export class Entity {
     dbChangesObj.deletedInstancesArr ??= []
     dbChangesObj.deletedInstancesArr.push([nonSnake2Snake(targetTableName), id4Deletion])
     if (dbChangesObj[className] && dbChangesObj[className][id4Deletion]) delete dbChangesObj[className][id4Deletion]
+
+    //@ts-ignore
+    this.source_._isDeleted_ = true
+    ChangeLogger.flushChanges()
   }
 
   /**
-   * A required pre-deletion step.
-   * Finds all instances that have a one-to-one relation with the calling instance,
-   * where the related property cannot be undefined.
-   * These relations must be reassigned before the calling instance can be safely deleted.
-   */
+  * A pre-deletion step that is required in certain cases.
+  * Finds all instances that have a one-to-one relationship with the calling instance
+  * where the related property cannot be set to `undefined`.
+  * These relationships must be reassigned before the calling instance
+  * can be safely deleted.
+  */
   async getDependents() {
     if (!this.id) return undefined
     const returnedObj = {}

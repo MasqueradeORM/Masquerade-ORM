@@ -32,3 +32,11 @@ export const js2db = {
     }
 }
 
+export const floatColumnTypes = [
+  "DOUBLE",
+  "DOUBLE PRECISION",
+  "REAL",
+  "FLOAT",
+  "FLOAT8"
+]
+

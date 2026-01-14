@@ -7,7 +7,7 @@ await ExampleClass.find(findObj)
 The find method is the most complex part of the ORM - **IntelliSense is your friend.**
 
 It accepts a single argument, findObj, which contains three optional fields.
-Because all fields are optional, findObj itself may be an empty object — although this is rarely useful, as it would return all instances of ExampleClass.
+Because all fields are optional, findObj itself may be an empty object (although this is rarely useful, as it would return all instances of ExampleClass).
 
 The three optional fields are:
 
@@ -23,7 +23,7 @@ Note: findObj is fully covered by IntelliSense. You are strongly encouraged to r
 The 'relations' field determines which relations are eagerly loaded from the database.
 
 A crucial detail to understand is that relations are never filtered.
-They are either loaded or not — the ORM never displays partial relational data.
+They are either loaded or not. The ORM never displays partial relational data.
 
 ```js
 // assume that relationalProp is a property of type SomeClass or SomeClass[]
@@ -60,10 +60,12 @@ exampleClassInstance.relationalProp.includes(someClassId57)
 // Assume the 'Chat' class has relational properties 'users' and 'messages'.
 // Initially, we load only the 'messages' relation for a specific chat.
 
-const someChat = await Chat.find({
+const resultArray = await Chat.find({
     relations: { messages: true }, // eager load the 'messages' relation
     where: { id: 123 } // fetch the chat with ID 123
-})[0] // get the first (and only) result
+})
+
+const someChat = resultArray[0]
 
 // At this point, 'someChat.users' is not loaded. To load the 'users' relation, we can await it.
 await someChat.users
@@ -86,7 +88,7 @@ await Chat.find({
 ```
 Translation: **“Find all chats that contain a message from a user with the id 12, without loading messages.“**     
 
-Something to note is that the scope of the where condtions is agnostic to the scope of the relations/eager loading.       
+Something to note is that the scope of the where condtions is agnostic to the scope of the relations/eager-loading.       
 It is completely safe to filter based on specific relations without having said relations passed into the 'relations' field.      
 
 ```js

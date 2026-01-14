@@ -36,10 +36,9 @@ export function nonRelationalArrayProxyDeleteHandler(array, key, propertyName, i
         //@ts-ignore
         const index = parseInt(key)
         if (index > -1) {
-            const classChangeObj = OrmStore.getClassChangeObj(instanceClass)
+            const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
             const instanceChangesObj = classChangeObj[instanceContainingArray.id] ??= {}
             instanceChangesObj[propertyName] = array
-            ChangeLogger.flushChanges()
             setUpdatedAtValue(instanceContainingArray, instanceChangesObj)
             return true
         }
@@ -52,9 +51,9 @@ export function nonRelationalArrayProxyDeleteHandler(array, key, propertyName, i
 export function nonRelationalArrayProxySetHandler(array, key, value, propertyName, instanceContainingArray, arrayOfObjects, instanceClass) {
     const index = parseInt(key)
     if (index > -1) {
-        const classChangeObj = OrmStore.getClassChangeObj(instanceClass)
+        const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
         const instanceChangesObj = classChangeObj[instanceContainingArray.id] ??= {}
-        setUpdatedAtValue(instanceContainingArray, instanceChangesObj)
+        
         if (arrayOfObjects) {
             value = createObjectProxy(instanceContainingArray, propertyName, value, true)
             array[index] = value
@@ -66,7 +65,7 @@ export function nonRelationalArrayProxySetHandler(array, key, value, propertyNam
             array[index] = value
             instanceChangesObj[propertyName] = array
         }
-        ChangeLogger.flushChanges()
+        setUpdatedAtValue(instanceContainingArray, instanceChangesObj)
         return true
     }
     else if (array[key]) {

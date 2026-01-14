@@ -1,7 +1,7 @@
 
 import { createSourceFile, SyntaxKind, ScriptKind, ScriptTarget } from "typescript"
 import { js2SqlTyping, nonSnake2Snake, snake2Pascal, array2String, coloredBackgroundConsoleLog } from "../misc/miscFunctions.js"
-import { dependenciesSymb, referencesSymb } from "../misc/constants.js"
+import { dependenciesSymb, floatColumnTypes, referencesSymb } from "../misc/constants.js"
 import { uuidv7 } from "uuidv7"
 import { DbManager, DbManagerStore } from "./DbManager.js"
 import { OrmStore } from "../misc/ormStore.js"
@@ -61,9 +61,11 @@ export async function compareAgainstDb(tablesDict) {
                 if (columnObj.relational) {
                     const junctionTableName = `${tableName}___${nonSnake2Snake(columnObj.name)}_jt`
                     const index = dbTableNames.findIndex(dbTableName => dbTableName === junctionTableName)
-                    if (index === -1) continue
-                    dbTableNames.splice(index, 1)
-                    delete tableObj.columns[column]
+                    if (index !== -1) {
+                        dbTableNames.splice(index, 1)
+                        delete tableObj.columns[column]
+                        continue
+                    }
                 }
                 const newColumnsDict = tableObj.newColumns ??= {}
                 newColumnsDict[column] = columnObj
@@ -536,14 +538,40 @@ export function createJunctionColumnContext(tablesDict) {
     columnArr2ColumnDict(tablesDict)
 }
 
-export function formatForCreation(tableDict) {
+
+function formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient) {
+    const newJunctionTable = {
+        name: `${tableObj.name}___${nonSnake2Snake(columnObj.name)}_jt`,
+        columns: {}
+    }
+    const joiningIdTypeInDb = js2SqlTyping(sqlClient, tableObj.columns.id.type, true)
+    let newJunctionTableColumn = {
+        type: joiningIdTypeInDb,
+        unique: columnObj.thisTableIdUnique,
+        refTable: tableObj.name
+    }
+    newJunctionTable.columns.joining = newJunctionTableColumn
+
+    const joinedTableName = columnObj.type
+    const joinedTable = tablesDict[joinedTableName] || tablesDict[nonSnake2Snake(joinedTableName)]
+    const joinedIdTypeInDb = js2SqlTyping(sqlClient, joinedTable.columns.id.type, true)
+
+    newJunctionTableColumn = {
+        type: joinedIdTypeInDb,
+        unique: false,
+        refTable: nonSnake2Snake(joinedTableName)
+    }
+    newJunctionTable.columns.joined = newJunctionTableColumn
+    return newJunctionTable
+}
+
+
+export function formatForCreation(tablesDict) {
     /**@type {TABLE[]}*/ const formattedTables = []
     const alterTableArr = []
-
     const sqlClient = OrmStore.store.sqlClient
 
-    for (const tableObj of Object.values(tableDict)) {
-
+    for (const tableObj of Object.values(tablesDict)) {
         if (tableObj.alreadyExists) {
             if (!tableObj.newColumns) continue
             alterTableArr.push(tableObj)
@@ -555,37 +583,11 @@ export function formatForCreation(tableDict) {
             columns: {},
             junctions: []
         }
-        //@ts-ignore
+
         if (tableObj.parent) formattedTable.parent = tableObj.parent.name
 
-        const joiningIdTypeInDb = js2SqlTyping(sqlClient, tableObj.columns.id.type)
-
         for (const columnObj of Object.values(tableObj.columns)) {
-            if (columnObj.relational) {
-                const newJunctionTable = {
-                    name: `${tableObj.name}___${nonSnake2Snake(columnObj.name)}_jt`,
-                    columns: {}
-                }
-
-                let newJunctionTableColumn = {
-                    type: joiningIdTypeInDb,
-                    unique: columnObj.thisTableIdUnique,
-                    refTable: tableObj.name
-                }
-                newJunctionTable.columns.joining = newJunctionTableColumn
-
-                const joinedTableName = nonSnake2Snake(columnObj.type)
-                const joinedTable = tableDict[joinedTableName]
-                const joinedIdTypeInDb = js2SqlTyping(sqlClient, joinedTable.columns.id.type)
-
-                newJunctionTableColumn = {
-                    type: joinedIdTypeInDb,
-                    unique: false,
-                    refTable: joinedTableName
-                }
-                newJunctionTable.columns.joined = newJunctionTableColumn
-                formattedTable.junctions?.push(newJunctionTable)
-            }
+            if (columnObj.relational) formattedTable.junctions?.push(formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient))
             else {
                 const { name, ...rest } = columnObj
                 formattedTable.columns[`${name}`] = rest
@@ -705,7 +707,10 @@ export function sqlTypeTableObj(tableObj, sqlClient) {
 
 export function generateTableCreationQueryObject(formattedTables) {
     const sqlClient = OrmStore.store.sqlClient
-    for (const tableObj of Object.values(formattedTables)) sqlTypeTableObj(tableObj, sqlClient)
+    for (const tableObj of Object.values(formattedTables)) {
+        sqlTypeTableObj(tableObj, sqlClient)
+        if (floatColumnTypes.includes(tableObj.columns.id.type)) tableObj.columns.id.type = 'INTEGER'
+    }
 
     const rootTables = formattedTables.filter(table => !table.parent)
     const childrenTables = formattedTables.filter(table => table.parent)
@@ -719,7 +724,6 @@ export function generateTableCreationQueryObject(formattedTables) {
 }
 
 export async function sendQueryFromQueryObj(queryObj, queryFunc) {
-
     const { query, children } = queryObj
     await queryFunc(query)
 
@@ -745,20 +749,19 @@ export async function sendTableCreationQueries(tableCreationObj) {
     }
 
     const tableQueryObjectsEntries = Object.entries(tableCreationObj.tableQueryObject)
-    coloredBackgroundConsoleLog(`Starting database table creation...\n`, `success`)
-
+    coloredBackgroundConsoleLog(`Updating database tables...\n`, `success`)
     for (const [tableName, queryObj] of tableQueryObjectsEntries) await sendQueryFromQueryObj(queryObj, queryFuncWithTryCatch)
-
-    for (const query of tableCreationObj.junctionQueriesArr) {
-        await queryFuncWithTryCatch(query)
-    }
-    coloredBackgroundConsoleLog(`Completed table creation successfully.\n`, `success`)
+    for (const query of tableCreationObj.junctionQueriesArr) await queryFuncWithTryCatch(query)
 }
+
+
+
 
 export function produceQueryObj(rootTable, tableQueryObject, childrenTables, junctionQueriesArr) {
     const query = produceTableCreationQuery(rootTable)
 
-    for (const junctionTable of rootTable.junctions) junctionQueriesArr.push(produceTableCreationQuery(junctionTable, true))
+    const junctions = rootTable.junctions
+    for (const junctionTable of junctions) junctionQueriesArr.push(produceTableCreationQuery(junctionTable, true))
 
     const rootTableQueryObj = tableQueryObject[rootTable.name] = { query }
     const children = childrenTables.filter(table => table.parent === rootTable.name)
@@ -834,41 +837,67 @@ export function columnArr2ColumnDict(tablesObj) {
 
 export async function alterTables(tables2alterArr) {
     if (!tables2alterArr.length) return
-    
-    const { sqlClient, dbConnection } = OrmStore.store
+
+    const { sqlClient, dbConnection, classWikiDict } = OrmStore.store
     const queryFunc = sqlClient === `postgresql`
-        ? async (statements, alterTableStr) => {
-            await dbConnection.query(alterTableStr + statements.join(`, `))
+        ? async (alterStatements, junctionStatements) => {
+            try {
+                if (alterStatements.length) await dbConnection.query(alterStatements.join(`, `))
+                if (junctionStatements.length) {
+                    await dbConnection.query('BEGIN;')
+                    for (const statement of junctionStatements) await dbConnection.query(statement)
+                    await dbConnection.query('COMMIT;')
+                }
+            }
+            catch (e) {
+                if (junctionStatements.length) await dbConnection.query('ROLLBACK;')
+                coloredBackgroundConsoleLog(e, "failure")
+            }
         }
-        : (statements, alterTableStr) => {
-            for (const statement of statements) {
-                dbConnection.exec(alterTableStr + statement)
+        : (alterStatements, junctionStatements) => {
+            const statements = [...alterStatements, ...junctionStatements]
+            try {
+                dbConnection.exec('BEGIN;')
+                for (const statement of statements) {
+                    dbConnection.exec(statement)
+                }
+                dbConnection.exec('COMMIT;')
+            }
+            catch (e) {
+                dbConnection.exec('ROLLBACK;')
+                coloredBackgroundConsoleLog(e, "failure")
             }
         }
 
     let alterTableStr
-    const statements = []
+    const alterStatements = []
+    const newJunctionStatements = []
 
     for (const tableObj of tables2alterArr) {
         alterTableStr = `ALTER TABLE ${tableObj.name} `
+        const idColumn = tableObj.columns.id
         tableObj.columns = structuredClone(tableObj.newColumns)
         sqlTypeTableObj(tableObj, sqlClient)
-        for (const [columnName, { type, nullable, isArray }] of Object.entries(tableObj.newColumns)) {
-            let statement = `ADD COLUMN ${nonSnake2Snake(columnName)} ${tableObj.columns[columnName].type} `
-            if (!nullable) statement += `NOT NULL DEFAULT ${type2DefaultValue(type, isArray, sqlClient)}`
-            statements.push(statement)
-            // console.log(true)
+
+        tableObj.columns.id = idColumn
+
+        for (const [columnName, columnObj] of Object.entries(tableObj.newColumns)) {
+            const { type, nullable, isArray, relational } = columnObj
+            let statement
+            if (relational) {
+                const junctionTableObj = formatRelationalColumnObj(tableObj, columnObj, classWikiDict, sqlClient)
+                statement = produceTableCreationQuery(junctionTableObj, true)
+                newJunctionStatements.push(statement)
+            }
+            else {
+                statement = `ADD COLUMN ${nonSnake2Snake(columnName)} ${tableObj.columns[columnName].type} `
+                if (!nullable) statement += `NOT NULL DEFAULT ${type2DefaultValue(type, isArray, sqlClient)}`
+                alterStatements.push(alterTableStr + statement)
+            }
         }
     }
 
-    try {
-        await queryFunc(statements, alterTableStr)
-    }
-    catch (e) {
-        console.log(e)
-    }
-
-    console.log(true)
+    await queryFunc(alterStatements, newJunctionStatements)
 }
 
 function type2DefaultValue(type, isArray, sqlClient) {

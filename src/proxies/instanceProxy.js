@@ -116,8 +116,9 @@ export function instanceProxyGetHandler(target, key, classWiki) {
 }
 
 export function instanceProxySetHandler(target, key, value, eventListenersObj, classWiki) {
-    const {dbChangesObj} = OrmStore.store
+    const { dbChangesObj } = OrmStore.store
     let oldValue = target[key]
+    if (oldValue === value) return
     if (value === null) value = undefined
     const entityClass = target.constructor.name
     let valChanged = true
@@ -177,17 +178,17 @@ export function instanceProxySetHandler(target, key, value, eventListenersObj, c
 
             const added = newIds.length ? newIds.filter(id => !oldIds.includes(id)) : []
             const removed = oldIds.length ? oldIds.filter(id => !newIds.includes(id)) : []
-            if (added.length || removed.length) {
-                const changeLogger = instanceChangeObj[key] ??= { added: [], removed: [] }
-                changeLogger.added.push(...added)
-                changeLogger.removed.push(...removed)
+            if (!added.length && !removed.length) return
 
-                const prefilteredAdded = [...changeLogger.added]
-                const prefilteredRemoved = [...changeLogger.removed]
+            const changeLogger = instanceChangeObj[key] ??= { added: [], removed: [] }
+            changeLogger.added.push(...added)
+            changeLogger.removed.push(...removed)
 
-                changeLogger.added = prefilteredAdded.filter(id => !prefilteredRemoved.includes(id))
-                changeLogger.removed = prefilteredRemoved.filter(id => !prefilteredAdded.includes(id))
-            }
+            const prefilteredAdded = [...changeLogger.added]
+            const prefilteredRemoved = [...changeLogger.removed]
+
+            changeLogger.added = prefilteredAdded.filter(id => !prefilteredRemoved.includes(id))
+            changeLogger.removed = prefilteredRemoved.filter(id => !prefilteredAdded.includes(id))
         }
         else if (!isArray) {
             const isValid = validateRelationalValSetting(target, key, value, isArray, expectedValType, isOptional, oldValue, entityClass)
@@ -216,6 +217,7 @@ export function setUpdatedAtValue(targetInstance, instanceChangeObj) {
     const now = new Date()
     targetInstance.updatedAt = now
     instanceChangeObj.updatedAt = now
+    ChangeLogger.flushChanges()
 }
 
 function validateRelationalValSetting(target, key, value, isArray, expectedValType, isOptional, oldValue, entityClass) {
@@ -256,7 +258,6 @@ function insertIntoDbChanges(target, key, value, changesObj, entityClass, isArra
     if (isArray && columnType === `object`) entityChangeObj[key] = JSON.stringify(value)
     else entityChangeObj[key] = value
     setUpdatedAtValue(target, entityChangeObj)
-    ChangeLogger.flushChanges()
 }
 
 export function addEventListener2Proxy(listeningInstance, key, eventListenersObj, oldListened2Proxy) {
@@ -267,21 +268,37 @@ export function addEventListener2Proxy(listeningInstance, key, eventListenersObj
     if (oldEventFunc) oldListened2Proxy.eEmitter_.removeEventListener("delete", oldEventFunc)
     if (!newListened2Proxy || !newListened2Proxy.id) return
 
-    const newEventFunc = (event) => {
+    const eventFunc = (event) => {
+        if (listeningInstance._isDeleted_) return
         // console.log(`Delete event received by ${listeningInstance.id}_${listeningInstance.constructor.name} on property '${key}' from ${newListened2Proxy.id}_${newListened2Proxy.constructor.name}`)
         const id2delete = event.detail.id
         if (listeningInstance[key].id === id2delete) {
             listeningInstance[key] = undefined
             delete eventListenersObj[key]
+            logDeletionEvent(listeningInstance, key, id2delete)
         }
     }
-    eventListenersObj[key] = newEventFunc
+    eventListenersObj[key] = eventFunc
 
     emitter.addEventListener(
         "delete",
-        newEventFunc,
+        eventFunc,
         { once: true }
     )
+}
+
+
+function logDeletionEvent(listeningInstance, key, id2delete) {
+    const instanceChangeObj = OrmStore.getClassChangesObj(listeningInstance.constructor.name)
+    const instanceChangesObj = instanceChangeObj[listeningInstance.id] ??= {}
+    if (!instanceChangesObj[key]) {
+        instanceChangesObj[key] = { added: [], removed: [id2delete] }
+    }
+    else {
+        if (instanceChangesObj[key].added.includes(id2delete)) instanceChangesObj[key].added = []
+        else instanceChangesObj[key].removed = [id2delete]
+    }
+    setUpdatedAtValue(listeningInstance, instanceChangesObj)
 }
 
 export function findOrInsertInInstanceLogger(instance, classLoggingMap, nonRelationalPropertiesObj, instanceRelations) {
@@ -478,6 +495,7 @@ export function proxifyEntityInstanceObj(instance, uncalledRelationalProperties)
             else if (key === "source_") return target
             else if (key === "eEmitter_") return emitter
             else if (key === "eListener_") return eventListenersObj
+            else if (key === "_isDeleted_") return target[key]
             return instanceProxyGetHandler(target, key, classWiki)
         },
         set: (target, /**@type {string}*/ key, value) => {
@@ -512,6 +530,7 @@ export function searchEntityMap(resultObj, calledRelationalPropNamesArr, entityM
     if (proxyOnLogger) {
         proxyOnLogger = proxyOnLogger.deref()
         if (!calledRelationalPropNamesArr.length) return [proxyOnLogger, []]
+
         let unproxied = proxyOnLogger.source_
         const relationalProperties2Add = []
 

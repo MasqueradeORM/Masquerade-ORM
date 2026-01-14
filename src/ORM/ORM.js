@@ -2,6 +2,7 @@ import { addChildrenToClasses, alterTables, compareAgainstDb, createBranches, cr
 export { Entity } from "../entity/entity.js"
 import { DatabaseSync } from "node:sqlite"
 import { OrmStore } from "../misc/ormStore.js"
+import { coloredBackgroundConsoleLog } from "../misc/miscFunctions.js"
 /**@typedef {import('../misc/types.js').SqlClient} SqlClient */
 /**@typedef {import('../misc/types.js').DbPrimaryKey} DbPrimaryKey */
 /**@typedef {import('../misc/types.js').OrmConfigObj} OrmConfigObj */
@@ -93,6 +94,7 @@ async function universalBoot(classDict, classFuncs, /**@type {OrmConfigObj}*/ co
   const tableCreationObj = generateTableCreationQueryObject(tables4creation)
   await sendTableCreationQueries(tableCreationObj)
   await alterTables(tables2alter)
+  coloredBackgroundConsoleLog(`Updated the database successfully.\n`, `success`)
 }
 
 

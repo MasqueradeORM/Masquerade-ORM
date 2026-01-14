@@ -1,10 +1,11 @@
 
-export {ORM} from "./ORM/ORM.js"
-export {Entity} from './entity/entity.js'
-export {DbManager} from "./ORM/DbManager.js"
-export {sql, AND, OR} from "./entity/find/where/whereArgsFunctions.js"
-export {MasqueradePlugin} from "./webpack/plugin.js"
+export {ORM} from "./src/ORM/ORM.js"
+export {Entity} from './src/entity/entity.js'
+export {DbManager} from "./src/ORM/DbManager.js"
+export {sql, AND, OR} from "./src/entity/find/where/whereArgsFunctions.js"
+export {MasqueradePlugin} from "./src/webpack/plugin.js"
 
 
-/** @typedef {import('./misc/types.d.ts').Unique} Unique */
-/** @typedef {import('./misc/types.d.ts').integer} integer */
+/** @typedef {import('./src/misc/types.d.ts').Unique} Unique */
+/** @typedef {import('./src/misc/types.d.ts').integer} integer */
+
