@@ -25,13 +25,21 @@ export declare class Entity {
   * where the related property cannot be set to `undefined`.
   * These relationships must be reassigned before the calling instance
   * can be safely deleted.
+  * Returns undefined if there are no dependents.
   */
-  getDependents(): Promise<void>
+  getDependents(): Promise<DependentsDict | undefined>
 
   /**
    * Finds all instances that have a relation with the calling instance,
    * This method is a superset of the getDependents method, and is not meant as a pre-deletion step, but as a utility.
    */
-  getReferencers(): Promise<void>
+  getReferencers(): Promise<DependentsDict | undefined>
 }
 
+
+type DependentsDict<T extends Entity> = {
+  [key: string]: [
+    dependentInstances: T[],
+    dependentProps: string[]
+  ]
+}

@@ -239,7 +239,7 @@ test('test 3 - deletion', async (t) => {
     }))[0]
 
     const childrenIds = children.map(child => child.id)
-    house.tenants && tenantCount && assert.strictEqual(tenantCount - house.tenants?.length , 2)
+    house.tenants && tenantCount && assert.strictEqual(tenantCount - house.tenants?.length, 2)
     assert.strictEqual(childrenIds.includes(firstChild.id), false)
     for (const person of house.tenants ?? []) assert.strictEqual(person.father, undefined)
   })
@@ -248,7 +248,6 @@ test('test 3 - deletion', async (t) => {
 test.after(async () => {
   await resetPostgresDb(configObj.dbConnection)
   console.log('db reset')
-
   // @ts-ignore
   configObj.dbConnection.end()
 })

@@ -3,7 +3,7 @@
   <img
   src="https://github.com/user-attachments/assets/3bf1ab31-f9c6-4362-b17d-1dfe7c414f17"
   alt="Masquerade ORM Logo"
-  style="max-width: 85%; height: auto;"
+  style="max-width: 50%; height: auto;"
   />
   </a>
   <br><br>
@@ -45,7 +45,7 @@ MasqueradeORM currently supports the following SQL clients:
 
 # Example Code Implementation
 
-**Creating an ORM-Compatible Class**
+### Creating an ORM-Compatible Class
 ```ts
 import { Entity } from 'masquerade'
 
@@ -73,37 +73,42 @@ export class User extends Entity {
         this.email = email
         this.password = password
     }
-
-		
-			// finds any User instance with id === lookupId
-    static async findById(lookupId: string): Promise<User | undefined> {
-        const resultArray = await this.find({ 	
-            where: { id: lookupId }
-        	})
-		// the static 'find' method is inherited from 'Entity'
-		return resultArray[0] 
-    }
 }
 ```
 
-**Saving Instances**
+### Basic Find Example
+```ts		
+// finds any User instance with email === lookupEmail
+async function findUserByEmail(lookupEmail: string): Promise<User | undefined> {
+    const resultArray = await User.find({
+        where: { email: lookupEmail }
+    })
+    // the static 'find' method above is inherited from 'Entity'
+
+    return resultArray[0]
+}
+```
+
+### Saving Instances
 ```ts
-// Creating a new table row in the 'User' table
+// Creating a new table row in the User table
 const newUser = new User('JohnDoe57', 'johnDoe@yahoo.com', 'passwordHash')
-// newUser will be saved to the database implicitly, no extra steps needed.
+// newUser will be saved to the database automatically, no explicit save call is required.
 
 // Finding a user by email
-const resultArray = await User.find({where: {email: 'johnDoe@yahoo.com'}})
-const user = resultArray[0] // user's friendList is a promise
+const user = await findUserByEmail('johnDoe@yahoo.com') // user's friendList is a promise
 console.log(user.username === 'JohnDoe57') // true
 ```
 
-**Mutating Data: non-Relational Properties**
+### Mutating Data
+All mutations are persisted implicitly and automatically, meaning that simply changing a value is enough for it to be reflected in the database.
+
+**Mutating non-Relational Properties**
 ```ts
 user.settings.theme = 'dark' 
 ```
 
-**Mutating Data: Relational Properties**
+**Mutating Relational Properties**
 ```ts
 // lazy-load friendList
 await user.friendList 
@@ -112,6 +117,7 @@ user.friendList.push(new User('JaneDoe33', 'janeDoe@yahoo.com', 'passwordHash2')
 // remove a relation
 user.friendList.pop() 
 ```
+
 
 # Further Reading
 

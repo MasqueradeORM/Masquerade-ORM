@@ -195,13 +195,18 @@ export class Entity {
 
     const referencesContext = classWiki[referencesSymb]
 
-    for (const [className, relationalProps] of Object.entries(referencesContext ?? {})) {
-      const referencesMap = classWikiDict[className]
-      returnedObj[className] = [await internalFind(referencesMap, relationalProps, referencedId), relationalProps]
+    if (referencesContext) {
+      for (const [className, relationalProps] of Object.entries(referencesContext ?? {})) {
+        const referencesMap = classWikiDict[className]
+        returnedObj[className] = [await internalFind(referencesMap, relationalProps, referencedId), relationalProps]
+      }
     }
 
     const dependencyContext = classWiki[dependenciesSymb]
-    if (!dependencyContext) return returnedObj
+    if (!dependencyContext) {
+      if (!referencesContext) return undefined
+      return returnedObj
+    }
 
     const dependentsDataObj = {}
     for (const [className, relationalProps] of Object.entries(dependencyContext)) {
