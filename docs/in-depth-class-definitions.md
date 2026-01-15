@@ -182,8 +182,12 @@ Classes that are connected to the ORM and mapped to database tables must follow 
 As long as these rules are adhered to, the class is valid.  
 
 
-<br >
-<div align="center" > 
-<strong>
-© 2026 MasqueradeORM. Released under the MIT License.
+<br>
+<div align="center">
+  <strong>
+    © 2026 
+    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
+		-
+    Released under the MIT License
+  </strong>
 </div>

@@ -26,8 +26,12 @@ await DbManager.dropUnusedJunctions()
 await DbManager.dropUnusedJunctions('unused_junction_table') 
 ```
 
-<br >
-<div align="center" > 
-<strong>
-© 2026 MasqueradeORM. Released under the MIT License.
+<br>
+<div align="center">
+  <strong>
+    © 2026 
+    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
+		-
+    Released under the MIT License
+  </strong>
 </div>
