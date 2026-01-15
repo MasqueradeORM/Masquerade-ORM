@@ -86,7 +86,7 @@ const yourDbConnection = new Pool({
 ```
 
 `idTypeDefault` sets the default id-type on all classes.    
-To manually set the id-type on a class, read **[Defining Classes: In-Depth](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/in-depth-class-definitions.md#overriding-the-default-id-type)**.
+To manually set the id-type on a class, read **[Defining Classes: In-Depth - Chapter 3](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/in-depth-class-definitions.md#overriding-the-default-id-type)**.
 
 
 ## 3) Boot ORM:

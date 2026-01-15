@@ -1,7 +1,7 @@
 
 # Defining Classes: In-Depth
 
-## Special Property Typing Cases
+## 1) Special Property Typing Cases
 
 **TypseScript**
 ```ts
@@ -114,7 +114,7 @@ newInstance.jsonArr = [...newInstance.jsonArr]
 Both approaches will allow for proper detection and persisting of such changes.
 
 
-## Overriding the Default Id-Type
+## 2) Overriding the Default Id-Type
 
 ```js
 import { Entity } from 'masquerade'
@@ -147,7 +147,7 @@ In the example above, `idType` has no effect because `ClassB` does not extend `E
 At the moment, this is the only class setting supported, but it may evolve in the future.
 
 
-## Abstract Classes
+## 3) Abstract Classes
 
 ### How to Create an Abstract Class When Using JSDoc:
 Put the decorator `/**@abstract*/` right above the constructor of the class.   
@@ -171,7 +171,7 @@ this means *ClassD's* table will inherit columns from both *ClassA* and *ClassB*
 
 
 
-## Guidelines for Classes
+## 4) Guidelines for Classes
 
 Classes that are connected to the ORM and mapped to database tables must follow a few simple rules:
 - **Rule 1:** Class must either directly extend Entity (imported from the package) or extend another class that has Entity as an ancestor.
