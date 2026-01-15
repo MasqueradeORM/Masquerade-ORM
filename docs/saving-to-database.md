@@ -26,3 +26,8 @@ Whenever the server is about to perform an async operation (for example, when ex
 Below is the order of operations:   
 **create/change data → hit an async boundary → ORM saves → safe to read**
 
+<br >
+<div align="center" > 
+<strong>
+© 2026 MasqueradeORM. Released under the MIT License.
+</div>

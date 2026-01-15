@@ -99,3 +99,4 @@ export class TestMessage extends Entity {
         this.sender = user
     }
 }
+

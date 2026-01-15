@@ -14,7 +14,9 @@
   <br><br>
 </div>
 
-**MasqueradeORM** is a lightweight ORM for Node.js that works seamlessly with both TypeScript and JavaScript. Its goal is to hide SQL complexity while letting you work naturally in JS/TS syntax. Instead of forcing you into ORM-specific models, metadata systems, or decorators, MasqueradeORM lets you use **your own classes** directly, exactly as you normally would.
+**MasqueradeORM** is a lightweight ORM for Node.js that works seamlessly with both TypeScript and JavaScript.
+Its goal is to hide SQL complexity while letting you work naturally in JS/TS syntax.    
+Instead of forcing you into ORM-specific models, metadata systems, or decorators, MasqueradeORM lets you use **your own classes** directly, exactly as you normally would.
 
 MasqueradeORM improves readability, maintainability, and workflow simplicity through a unified coding approach and extremely minimal setup.    
 No ORM offers a simpler start.    
@@ -26,16 +28,16 @@ MasqueradeORM currently supports the following SQL clients:
 - **Postgresql**
 
 # Features
-- **Effortless setup** – no ORM-specific structures; just use your classes.
-- **Zero schema planning** – tables and schema are generated automatically.
-- **Powerful IntelliSense** – easily build complex queries (CTRL + Space when in doubt).
-- **Minimal memory usage** – One class instance per database row, minimizing memory usage and avoiding duplicates through smart state management.
-- **Optimized querying** – fewer queries through intelligent transaction grouping without sacrificing data integrity.
-- **Relational WHERE clauses** – easily write conditions that compare two columns within the same table or columns across different tables.
-- **Write complex WHERE conditions using a template-literal helper** – enabling expressive comparisons like >=, LIKE, object-property access, and even array element matching, all without cluttering your query code.
-- **SQL injection protection** – all queries are parameterized.
-- **Lightweight** – minimal dependencies.
-- **Strong typing even in JavaScript** – powered by JSDoc, no compile step required.
+- **Effortless setup** - no ORM-specific structures; just use your classes.
+- **Zero schema planning** - tables and schema are generated automatically.
+- **Powerful IntelliSense** - Confidently build complex queries with real-time IDE feedback when something’s wrong.
+- **Minimal memory usage** - One class instance per database row, minimizing memory usage and avoiding duplicates through smart state management.
+- **Optimized querying** - fewer queries through intelligent transaction grouping without sacrificing data integrity.
+- **Relational WHERE clauses** - easily write conditions that compare two columns within the same table or columns across different tables.
+- **Write complex WHERE conditions using a template-literal helper** - enabling expressive comparisons like >=, LIKE, object-property access, and even array element matching, all without cluttering your query code.
+- **SQL injection protection** - all queries are parameterized.
+- **Lightweight** - minimal dependencies.
+- **Strong typing even in JavaScript** - powered by JSDoc, no compile step required.
 - **Reduced data transfer size** - improves performance in client-server setups (not applicable for embedded databases like SQLite).
 - **Abstract and non-abstract inheritance** - enables the use of abstract classes, even in JavaScript.
 - **Combines the convenience of embedded SQLite with the strict typing of RDBMS**
@@ -124,11 +126,10 @@ user.friendList.pop()
 - **[Getting Started - Javascript](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/getting-started-Javascript.md#class-definitions)**
 - **[Getting Started - Typescript](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/getting-started-Typescript.md#class-definitions)**
 - **[Find Method](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/find.md#find)**
-- **[Saving to the Database](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/saving-to-database.md#saving-to-the-database)**
-- **[Deletion](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/deletion.md)**
-- **[Managing the Database](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/managing-the-database.md)**
-- **[Operational Edge Cases](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/operational-edge-cases.md)**
-
+- **[Saving to Database](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/saving-to-database.md#saving-to-the-database)**
+- **[Deleting Instances from the Database](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/deletion.md)**
+- **[Managing Database Tables](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/managing-the-database.md)**
+- **[Defining Classes: In-Depth](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/in-depth-class-definitions.md)** **(important read)**
 
 
 

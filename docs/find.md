@@ -15,10 +15,10 @@ The three optional fields are:
 - where
 - relationalWhere
 
-Note: findObj is fully covered by IntelliSense. You are strongly encouraged to rely on it.
+**Note: findObj is fully covered by IntelliSense. You are strongly encouraged to rely on it.**
 
 
-## `relations` field:
+## The `relations` Field:
 
 The `relations` field determines which relations are eagerly loaded from the database.
 
@@ -73,7 +73,7 @@ await someChat.users
 ```
 
 
-## `where` field:
+## The `where` Field:
 
 The `where` field is for filtering the root instances, in the following case, Chat instances.
 ```js
@@ -174,10 +174,10 @@ const completedOrders = await Order.find({
 })
 ```
 
-- **note:** for SQL-client specific guide for writing `WHERE` conditions involving JSON and array data, go to the bottom of this page.
+- **note:** for SQL-client specific guide for writing `WHERE` conditions involving JSON and array data, go to the bottom of this page or click **[here](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/find.md#array-and-json-where-conditions-guide)**.
 
 
-## 'relationalWhere' field:
+## The `relationalWhere` Field:
 
 ```js
 import { sql } from "masquerade"
@@ -205,7 +205,7 @@ await User.find({
 })
 ```
 
-### Advanced `WHERE` Conditions Writing Guide
+### Array and JSON `WHERE` Conditions Guide
 
 The model we will use for the examples:
 
@@ -250,3 +250,10 @@ Array length | **for metadata** <br> `json_array_length(json_extract(#, '$.roles
 | Check if array contains a value | `json_extract(#, '$.roles') LIKE '%"admin"%'` | `#->'roles' @> '["admin"]'::jsonb` |
 Check nested field | `json_extract(#, '$.preferences.theme') = 'dark'` | `#->'preferences'->>'theme' = 'dark'` |
 | 
+
+
+<br >
+<div align="center" > 
+<strong>
+© 2026 MasqueradeORM. Released under the MIT License.
+</div>

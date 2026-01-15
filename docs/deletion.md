@@ -1,4 +1,4 @@
-# Deletion
+# Deleting Instances from the Database
 
 ### Soft Deletion
 The ORM does not support soft deletion by default. To implement soft deletion, you need to add a `deleted` or `isDeleted` property to your classes and manually set this value.
@@ -108,3 +108,9 @@ for (const dependentClassName of Object.keys(dependentsDict)) {
   }
 }
 ```
+
+<br >
+<div align="center" > 
+<strong>
+© 2026 MasqueradeORM. Released under the MIT License.
+</div>

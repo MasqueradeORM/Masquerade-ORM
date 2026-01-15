@@ -1,6 +1,6 @@
 
 
-# Managing the Database
+# Managing Database Tables
 
 With time, databases can get messy with unused tables or columns that need dropping.    
 On booting, the ORM will warn you of any such tables or columns, to allow you to keep track of any redundancies.    
@@ -26,9 +26,8 @@ await DbManager.dropUnusedJunctions()
 await DbManager.dropUnusedJunctions('unused_junction_table') 
 ```
 
-
-
-
-
-
-
+<br >
+<div align="center" > 
+<strong>
+© 2026 MasqueradeORM. Released under the MIT License.
+</div>
