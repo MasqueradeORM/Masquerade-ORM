@@ -229,27 +229,30 @@ class User extends Entity {
 }
 ```
 
-Assuming we are writing the condition for the column/property `metadata` like so:
+Assuming we are writing the condition for the property `metadata` or `sessions`  like so:
 ```ts
 import { sql } from "masquerade"
 // 'metadata' find
-const users = await User.find({where: {metadata: sql`_CONDITION_STRING_FROM_BELOW_`}})
+const users = await User.find({where: {metadata: sql`_OPERATION_STRING_`}})
 
 // 'sessions' find 
-const users = await User.find({where: {sessions: sql`_CONDITION_STRING_FROM_BELOW_`}})
+const users2 = await User.find({where: {sessions: sql`_OPERATION_STRING_`}})
 
 // **if not specified, the default is the 'metadata' find
+
+// replace _OPERATION_STRING_ with the appropriate 
+// operation string from the table below
 ```
 
-**Condition String Table**
+<strong>**Operation String Table**
 
 | Operation    | SQLite      | PostgreSQL   |
 |-------------|---------------|------------|
-Array length | **'metadata' find** <br> `json_array_length(json_extract(#, '$.roles')) > 2` <br> **'sessions' find** <br> `json_array_length(json_extract(#)) > 2` | **'metadata' find** <br> `jsonb_array_length(#->'roles') > 2` <br> **'sessions' find** <br> `jsonb_array_length(#) > 2`|
+Array length <br>(example uses len = 2) | **'metadata' find** <br> `json_array_length(json_extract(#, '$.roles')) > 2` <br> **'sessions' find** <br> `json_array_length(json_extract(#)) > 2` | **'metadata' find** <br> `jsonb_array_length(#->'roles') > 2` <br> **'sessions' find** <br> `jsonb_array_length(#) > 2`|
 | Access index `i` of array   | **'metadata' find** <br>`json_extract(#, '$.roles[i]') = 'admin'`<br> **'sessions' find** <br>`json_extract(#, '$[i]') = 'SOME_SESSION_ID'` | **'metadata' find** <br>`#->'roles'->>i = 'admin''`<br> **'sessions' find** <br>`#->>i = 'admin'` |
 | Check if array contains a value | `json_extract(#, '$.roles') LIKE '%"admin"%'` | `#->'roles' @> '["admin"]'::jsonb` |
 Check nested field | `json_extract(#, '$.preferences.theme') = 'dark'` | `#->'preferences'->>'theme' = 'dark'` |
- 
+</strong>
 
 
 <br>
