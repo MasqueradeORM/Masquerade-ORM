@@ -1,7 +1,71 @@
 # Deleting Instances from the Database
 
 ### Soft Deletion
-The ORM does not support soft deletion by default. To implement soft deletion, you need to add a `deleted` or `isDeleted` property to your classes and manually set this value.
+The ORM does not support soft deletion by default. To implement soft deletion, just create an abstract class like so: 
+
+**TypeScript**
+```ts
+abstract class SoftDel extends Entity {
+  isDeleted: boolean = false
+
+    constructor() {
+        super()
+    }
+}
+
+abstract class SoftDelUUID extends Entity {
+  // switch 'UUID' to 'INT' or 'BIGINT' as needed.
+  static ormClassSettings_ = { idType: 'UUID' } 
+  isDeleted: boolean = false
+
+  constructor() {
+      super()
+  }
+}
+```
+
+**JavaScript**
+```js
+class SoftDel extends Entity {
+  /**@type {boolean}*/ isDeleted = false
+
+  /** @abstract */
+  constructor() {
+      super()
+  }
+}
+
+class SoftDelUUID extends Entity {
+  // switch 'UUID' to 'INT' or 'BIGINT' as needed.
+  static ormClassSettings_ = { idType: 'UUID' }
+  /**@type {boolean}*/ isDeleted = false
+
+  /** @abstract */
+  constructor() {
+      super()
+  }
+}
+```
+
+Now, every class that extends these `SoftDel` classes will have a boolean property `isDeleted` that is `false` by default, allowing instances to be soft-deleted by setting the `isDeleted` value to `true`.
+
+```ts
+class SoftDeletableUser extends SoftDelUUID {
+  username: string
+  email: string
+  password: string
+
+  constructor (username, email, password) {
+    this.username = username
+    this.email = email
+    this.password = password
+  }
+}
+
+const softDelUser = new SoftDeletableUser('JohnDoe', 'JohnDoe@gmail.com', 'hashedPassword')
+// softDelUser has an 'isDeleted' property that can be toggled to true for soft deletion
+// and has an id type of UUID.
+```
 
 ### Hard Deletion
 

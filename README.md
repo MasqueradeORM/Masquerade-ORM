@@ -18,9 +18,9 @@
 Its goal is to hide SQL complexity while letting you work naturally in JS/TS syntax.    
 Instead of forcing you into ORM-specific models, metadata systems, or decorators, MasqueradeORM lets you use **your own classes** directly, exactly as you normally would.
 
-MasqueradeORM improves readability, maintainability, and workflow simplicity through a unified coding approach and extremely minimal setup.    
-No ORM offers a simpler start.    
-There’s no need to manage heavy configuration layers, maintain secondary schema systems, or even plan your database structure separately.  
+MasqueradeORM improves readability, maintainability, and workflow simplicity through a unified coding approach and extremely minimal setup. 
+No ORM offers a simpler start.
+There’s no need to manage heavy configuration layers, maintain secondary schema systems, or even plan your database structure separately. 
 Your schema and tables are generated automatically from a single source of truth: **Your class definitions.**
 
 MasqueradeORM currently supports the following SQL clients: 
