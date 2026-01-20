@@ -6,7 +6,7 @@ import { Pool } from 'pg'
 
 export function createConfigObj(client) {
     if (client === `sqlite`) return {
-        dbConnection: new DatabaseSync('masquerade-test'),
+        dbConnection: new DatabaseSync('test'),
         idTypeDefault: "INT"
     }
 
