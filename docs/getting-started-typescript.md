@@ -137,10 +137,12 @@ import { MasqueradePlugin } from './plugin.js'
 import * as classes from "./classes"
 import * as moreClasses from "./moreClasses"
 import { SomeClass } from "./aSingleClass"
+
 if (!usingWebpack) {
 import { UniversalTsSetup } from "some/path/ormTypeScriptSetup"
 UniversalTsSetup()
 }
+
 await ORM.typescriptBoot(ormConfig, classes, moreClasses, someClass)
 ```
 
