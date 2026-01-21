@@ -94,7 +94,7 @@ To manually set the id-type on a class, read **[Defining Classes: In-Depth - Cha
 
 ### A) Universal Build Step:  
 
-First run ```bash npx orm-ts-setup``` in your terminal before your compile step. Then, compile and import ```UniversalTsSetup``` into your entry point, and run it before the boot method. Detailed example below in **[Section 4](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/getting-started-Typescript.md#4-boot-orm)**.    
+First run ```bash npx orm-ts-setup``` in your terminal before your compile step. Then, compile and import ```UniversalTsSetup``` into your entry point, and run it before the boot method. Detailed example below in **[Section 4](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/getting-started-typescript.md#4-boot-orm)**.    
 
 
 
