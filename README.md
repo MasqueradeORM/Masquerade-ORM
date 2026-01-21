@@ -15,7 +15,8 @@
 </div>
 
 **MasqueradeORM** is a lightweight ORM for Node.js that works seamlessly with both TypeScript and JavaScript.
-Its goal is to hide SQL complexity while letting you work naturally in JS/TS syntax.    
+
+Its goal is to hide SQL complexity while letting you work naturally in JS/TS syntax. 
 Instead of forcing you into ORM-specific models, metadata systems, or decorators, MasqueradeORM lets you use **your own classes** directly, exactly as you normally would.
 
 MasqueradeORM improves readability, maintainability, and workflow simplicity through a unified coding approach and extremely minimal setup. 

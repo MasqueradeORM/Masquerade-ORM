@@ -2,7 +2,23 @@
   "name": "masquerade-orm",
   "version": "0.1.0",
   "description": "Lightweight ORM compatible with SQLite and Postgresql in Node.js",
-  "keywords": [],
+  "keywords": [
+    "orm",
+    "TypeScript",
+    "TS",
+    "JavaScript",
+    "JS",
+    "NodeJs",
+    "sqlite",
+    "postgresql",
+    "postgres",
+    "database",
+    "db",
+    "SQL",
+    "lightweight",
+    "typeorm",
+    "prisma"
+  ],
   "repository": {
     "type": "git",
     "url": "Masquerade-Orm"
