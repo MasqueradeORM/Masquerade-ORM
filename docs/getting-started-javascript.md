@@ -99,12 +99,7 @@ await ORM.javascriptBoot(ormConfig, classes, moreClasses, someClass)
 ```
 
 
-<div align="center" > 
-<strong style="font-size: 1.6em;">
-All done!
-</strong>
-<br>
-<br>
+<h1 align="center">All done!</h1>
 
 <br>
 <div align="center">
