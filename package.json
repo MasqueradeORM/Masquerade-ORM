@@ -1,6 +1,6 @@
 {
   "name": "masquerade-orm",
-  "version": "0.1.1",
+  "version": "0.8.1",
   "description": "Lightweight ORM compatible with SQLite and Postgresql in Node.js",
   "keywords": [
     "orm",
@@ -33,7 +33,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "orm-ts-setup": "./bin/universalTsInit.js"
+    "orm-ts-setup": "bin/universalTsInit.js"
   },
   "license": "MIT",
   "author": "Masquerade-Orm",

@@ -4,7 +4,7 @@
     <picture>
         <source media="(prefers-color-scheme: dark)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/DARK-THEME-LOGO-transperent-bg.png">
         <source  media="(prefers-color-scheme: light)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/LIGHT-THEME-LOGO-transperent-bg.png">
-        <img style="max-width: 33%; height: auto;" alt="MasqueradeORM Logo" src="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/DARK-THEME-LOGO-transperent-bg.png">
+        <img style="max-width: 33%; height: auto;" alt="MasqueradeORM Logo" src="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/LIGHT-THEME-LOGO-transperent-bg.png">
     </picture>
   </a>
   <br><br>
