@@ -7,7 +7,7 @@ This guide will instruct you on how to adjust your VS Code settings to vastly im
 Here is how your code will look like after applying the settings:
 
  
-![img](https://github-production-user-asset-6210df.s3.amazonaws.com/127947659/541539790-55418d95-9e52-45ee-8576-02ea9ea319f6.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260128%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260128T100708Z&X-Amz-Expires=300&X-Amz-Signature=2f11d997163d059e0d1c180f2f1d3de0d02bc9a89c3cdfd18acf1b05edd26700&X-Amz-SignedHeaders=host)
+![img](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/jsdoc-class-example.png)
 
 
 
@@ -175,7 +175,7 @@ Add the following lines to your `jsconfig.json` file:
 /**@typedef {import('./path/to/file').YourImportedType} YourImportedTypeAlias*/
 ```
 
-![gif](https://github-production-user-asset-6210df.s3.amazonaws.com/127947659/541517721-4390af08-82fb-4ac8-a505-fb628dfff466.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260128%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260128T092714Z&X-Amz-Expires=300&X-Amz-Signature=3d21fa79447aff9402dd12943b3cff1cf8d923263813af3c60f8d5760ca0a9ec&X-Amz-SignedHeaders=host)
+![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/import-typedef.gif)
 
 
 ### Typing Variables
@@ -184,7 +184,7 @@ Add the following lines to your `jsconfig.json` file:
 /**@type {string}*/ someString = '123'
 /**@type {number}*/ someNumber = 567
 ```
-![gif](https://github-production-user-asset-6210df.s3.amazonaws.com/127947659/541476030-a3c5dbdf-6777-4c88-9786-c70490f2be0d.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260128%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260128T081138Z&X-Amz-Expires=300&X-Amz-Signature=bfdb8d474d3131183a691b38ed7c7ddaec6695b638e360f95f419005c2462b13&X-Amz-SignedHeaders=host)
+![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/type-declarations.gif)
 
 
 ### Quick `Object` Type Deinition
@@ -197,7 +197,7 @@ Add the following lines to your `jsconfig.json` file:
 */
 ```
 
-![gif](https://github-production-user-asset-6210df.s3.amazonaws.com/127947659/541526808-5148b247-4d0b-4e92-920f-ae415b01d787.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20260128%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260128T094327Z&X-Amz-Expires=300&X-Amz-Signature=047eccd0694a34eeaf6247cf1ae27fd5ce8a561768156488ee12f50c1e27ad31&X-Amz-SignedHeaders=host)
+![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/typedef.gif)
 
 ### Defining Classes
 
