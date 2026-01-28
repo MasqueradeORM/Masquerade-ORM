@@ -1,4 +1,4 @@
-import { store } from "./store"
+import { store } from "./store.js"
 import { createSourceFile, SyntaxKind, ScriptKind, ScriptTarget } from "typescript"
 
 

@@ -160,7 +160,7 @@ Copy the JSON below and save.
 
 ### 4) Configure the `jsconfig.json` file
 
-Add the following lines to your `jsconfig.json` file:
+Add the following lines to your `jsconfig.json` (or `tsconfig.json`) file:
 ```JSON
 "allowJs": true,
 "checkJs": true
@@ -170,7 +170,7 @@ Add the following lines to your `jsconfig.json` file:
 ## Using the Shortcuts
 
 
-### Importing types from the package 
+### Importing Types
 
 - **Use `importTypedef`**
 ```js
@@ -192,7 +192,7 @@ Add the following lines to your `jsconfig.json` file:
 ![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/type-declarations.gif)
 
 
-### Quick `Object` Type Deinition
+### `Object` Type Deinition Template
 - **Use `typedef`**
 ```js
 /**
