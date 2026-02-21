@@ -171,18 +171,3 @@ user.friendList.pop()
     </a> 
   </strong>
 </div>
-
-
-<style>
-  .badge-light, .badge-dark { display: none; }
-
-  @media (prefers-color-scheme: light) {
-    .badge-light { display: inline; }
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .badge-dark { display: inline; }
-  }
-</style>
-
-
