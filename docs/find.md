@@ -6,18 +6,21 @@ await ExampleClass.find(findObj)
 
 The `find` method is the most complex part of the ORM. **Fortunately, it is fully covered by IntelliSense, and you are strongly encouraged to rely on it.**
 
-It accepts a single argument, findObj, which contains three optional fields.
-Because all fields are optional, findObj itself may be an empty object (although this is rarely useful, as it would return all instances of ExampleClass).
+It accepts a single argument, `findObj`, which contains three optional fields.
+Because all fields are optional, `findObj` itself may be an empty object (although this is rarely useful, as it would return all instances of `ExampleClass`).
 
-The three optional fields are:
+The 6 optional fields are:
 
 - relations
 - where
 - templateWhere
+- orderBy
+- limit
+- offset
 
 
 
-## The `relations` Field:
+## The `relations` Field
 
 The `relations` field determines which relations are eagerly loaded from the database.
 
@@ -72,7 +75,7 @@ await someChat.users
 ```
 
 
-## The `where` Field:
+## The `where` Field
 
 The `where` field is for filtering the root instances, in the following case, Chat instances.
 ```js
@@ -172,9 +175,9 @@ type OrderOverview = {
 }
 
 class Order extends Entity {
-  // other properties...
+  // other properties
   metadata: UserMetadata
-  // other properties + constructor...
+  // other properties + constructor
 }
 
 const completedOrders = await Order.find({
@@ -183,10 +186,10 @@ const completedOrders = await Order.find({
 })
 ```
 
-- **Note:** for SQL-client specific guide for writing `WHERE` conditions involving JSON and array data, go to the bottom of this page or click **[here](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/find.md#array-and-json-where-conditions-guide)**.
+- **Note:** for SQL-client specific guide for writing `WHERE` conditions involving JSON/object or array values, go to the bottom of this page or click **[here](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/find.md#array-and-json-where-conditions-guide)**.
 
 
-## The `templateWhere` Field:
+## The `templateWhere` Field
 
 ```js
 import { sql } from "masquerade-orm"
@@ -201,12 +204,12 @@ await User.find({
 import { sql } from "masquerade-orm"
 
 // Identical to the previous example, but here the 'templateWhere' is called from a different scope.
-// note: the field has an underscore, to prevent any (rather impossible) name collisions.
+// note: the field has a $, to prevent any (rather impossible) name collisions.
 
 await User.find({
   where: {
     chats: {
-      templateWhere_: (chat) => sql`${chat.messages.sender.username} = 'Glory2Christ'`,
+      $templateWhere: (chat) => sql`${chat.messages.sender.username} = 'Glory2Christ'`,
       // can be combined with regular 'where' conditions - below is valid code
       // chatName: 'The History of Orthodoxy' 
     }
@@ -231,10 +234,10 @@ type UserMetadata = {
 }
 
 class User extends Entity {
-  // other properties...
+  // other properties
   metadata: UserMetadata
   sessions: string[]
-  // other properties + constructor...
+  // other properties + constructor
 }
 ```
 
@@ -264,12 +267,29 @@ Check nested field | `json_extract(#, '$.preferences.theme') = 'dark'` | `#->'pr
 </strong>
 
 
+
+## The `orderBy` Field:
+
+The `orderBy` field sorts the **base entity instances in the returned array**. Similar to how `WHERE` arguments do not filter relational data but only determine which base instances are returned, `orderBy` conditions affect **only the order of the base entity instances**.
+
+The `orderBy` argument does not support only simple `ASCENDING` and `DESCENDING` ordering corresponding respectively to `ASC` and `DESC`, but also supports the usage of **aggregate functions**.
+
+```js
+// assuming the class Product has a relational property 'reviews' of type Review[], with Review having a property of 'rating' that is of type number.
+$aggregate: true, // since AVG() is an aggregate function, this must be set to true
+$templateOrderBy: (product) => sql`AVG(${product.reviews.rating})`,
+where: {price: sql`< ${maxPrice}`}
+```
+
+
 <br>
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
-		-
-    Released under the MIT License
+    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <br>
+    Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
+    Apache License 2.0
+    </a> 
   </strong>
 </div>

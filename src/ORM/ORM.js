@@ -1,12 +1,10 @@
 import { addChildrenToClasses, alterTables, compareAgainstDb, createBranches, createClassMap, createJunctionColumnContext, createTableObject, entities2NodeArr, formatForCreation, generateTableCreationQueryObject, getInitIdValues, handleSpecialSettingId, nodeArr2ClassDict, returnEntityClassObj, sendTableCreationQueries } from "./bootOrm.js"
 export { Entity } from "../entity/entity.js"
-import { DatabaseSync } from "node:sqlite"
 import { OrmStore } from "../misc/ormStore.js"
 import { coloredBackgroundConsoleLog } from "../misc/miscFunctions.js"
-/**@typedef {import('../misc/types.js').SqlClient} SqlClient */
 /**@typedef {import('../misc/types.js').DbPrimaryKey} DbPrimaryKey */
 /**@typedef {import('../misc/types.js').OrmConfigObj} OrmConfigObj */
-/**@typedef {import('pg').Pool} Pool*/
+
 
 export const FinalizationRegistrySymb = Symbol("FinalizationRegistry")
 export const DependentsFinalizationRegistry = Symbol("DependentsFinalizationRegistry")
@@ -14,21 +12,6 @@ export class ORM {
   static [FinalizationRegistrySymb] = new FinalizationRegistry(([className, id]) => OrmStore.store.entityMapsObj[className].delete(id))
   static [DependentsFinalizationRegistry] = new FinalizationRegistry(([className, id]) => OrmStore.store.dependentsMapsObj[className].delete(id))
 
-
-  /**
-   * Boot the ORM when using JavaScript.
-   * This method processes a combination of class constructor functions or class-like objects 
-   * and bootstraps them into the ORM configuration.
-   * 
-   * You can pass either:
-   * - **Class constructor functions** (e.g., `class MyClass {}`) or
-   * - **Objects** that map class names to class constructors (e.g., `{ MyClass: class {}}`).
-   * @param {OrmConfigObj} config - The ORM configuration object used to initialize the ORM system.
-   * @param {...(function|object)} classes - A rest parameter that can accept multiple class constructors 
-   *                                         (functions) or class dictionaries (objects) where the key is the 
-   *                                         class name and the value is the class constructor.
-   * @returns {Promise<void>}
-   */
   static async javascriptBoot(config, ...classes) {
     let classFuncsDict = {}
     let i = 2
@@ -45,21 +28,6 @@ export class ORM {
     await universalBoot(classDict, classFuncs, config)
   }
 
-
-  /**
-   * Boot the ORM when using TypeScript.
-   * This method processes a combination of class constructor functions or class-like objects 
-   * and bootstraps them into the ORM configuration.
-   * 
-   * You can pass either:
-   * - **Class constructor functions** (e.g., `class MyClass {}`) or
-   * - **Objects** that map class names to class constructors (e.g., `{ MyClass: class {}}`).
-   * @param {OrmConfigObj} config - The ORM configuration object used to initialize the ORM system.
-   * @param {...(function|object)} classes - A rest parameter that can accept multiple class constructors 
-   *                                         (functions) or class dictionaries (objects) where the key is the 
-   *                                         class name and the value is the class constructor.
-   * @returns {Promise<void>}
-   */
   static async typescriptBoot(config, ...classes) {
     const classDict = globalThis.masqueradeClassDict_
     let classFuncsDict = {}
@@ -101,7 +69,9 @@ async function universalBoot(classDict, classFuncs, /**@type {OrmConfigObj}*/ co
 function configure(/**@type {OrmConfigObj}*/ configObj) {
   const { idTypeDefault, dbConnection } = configObj
   if (!idTypeDefault || !dbConnection) throw new Error("Invalid ORM configuration object.")
-  const sqlClient = dbConnection instanceof DatabaseSync ? 'sqlite' : 'postgresql'
+  
+  const sqlClient = detectDriver(dbConnection)
+  if (sqlClient === 'unknown') throw new Error("Invalid database connection instance.")
   OrmStore.store = {
     idTypeDefault,
     dbConnection,
@@ -112,6 +82,50 @@ function configure(/**@type {OrmConfigObj}*/ configObj) {
     entities: undefined
   }
 }
+
+function detectDriver(db) {
+  if (!db || typeof db !== 'object') return 'unknown'
+
+  const name = db.constructor?.name
+
+  // PostgreSQL (pg)
+  if (
+    (name === 'Pool' || name === 'Client' || name === 'BoundPool') &&
+    typeof db.query === 'function' &&
+    db.options
+  ) {
+    return 'postgres'
+  }
+
+  // // MySQL (mysql2)
+  // if (
+  //   name === 'Pool' &&
+  //   typeof db.getConnection === 'function' &&
+  //   typeof db.execute === 'function'
+  // ) {
+  //   return 'mysql'
+  // }
+
+  // SQLite (better-sqlite3)
+  if (
+    (name === 'Database' || name === 'DatabaseSync') &&
+    typeof db.prepare === 'function' &&
+    typeof db.exec === 'function'
+  ) {
+    return 'sqlite'
+  }
+
+  // // MSSQL
+  // if (
+  //   name === 'ConnectionPool' &&
+  //   typeof db.request === 'function'
+  // ) {
+  //   return 'mssql'
+  // }
+
+  return 'unknown'
+}
+
 // function columnsWithCasting(classWiki) {
 //   const returnedArr = []
 //   const Js2Db = {
@@ -156,7 +170,7 @@ function configure(/**@type {OrmConfigObj}*/ configObj) {
 //       if (typeof item === 'string') {
 //         return item.replace(/"/g, '\\"') // escape quotes inside strings
 //       }
-//       return item;
+//       return item
 //     }).join(',') + '}'
 //   }
 //   else if (typeof value === 'object') {
@@ -173,7 +187,7 @@ function configure(/**@type {OrmConfigObj}*/ configObj) {
 //   CAST($1 AS BOOLEAN) AS as_boolean,
 //   CAST($1 AS JSONB) AS as_jsonb,
 //   CAST($1 AS TEXT[]) AS as_text_array,
-//   CAST($1 AS INTEGER[]) AS as_int_array;
+//   CAST($1 AS INTEGER[]) AS as_int_array
 
 
 

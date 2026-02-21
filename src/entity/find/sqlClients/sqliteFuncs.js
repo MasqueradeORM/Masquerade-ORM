@@ -1,15 +1,27 @@
-import { nonSnake2Snake, snake2Pascal, sqlite2JsTyping } from "../../../misc/miscFunctions.js"
+import { nonSnake2Snake, postgres2sqliteQueryStr, snake2Pascal, sqlite2JsTyping } from "../../../misc/miscFunctions.js"
 import { rowObj2InstanceProxy } from "../../../proxies/instanceProxy.js"
 import { createNonRelationalArrayProxy } from "../../../proxies/nonRelationalArrayProxy.js"
 import { createObjectProxy } from "../../../proxies/objectProxy.js"
 import { findColumnObjOnWiki } from "../find.js"
 import { junctionJoinCte, junctionJoinSelectedCte, parentJoin } from "../joins.js"
 
-export function sqliteCreateProxyArray(resultArray, findWiki, entitiesFuncArr, hadEagerLoading, is4UncalledJunctionPromise = false) {
-    if (resultArray.length === 0) return []
+export function sqliteCreateProxyArray(resultArray, findWiki, entitiesFuncArr, hasEagerLoading, isOrdered = false) {
+    if (!resultArray || resultArray.length === 0) return []
     const proxyArr = []
+    const orderDict = {}
+    if (isOrdered) {
+        const rootIdName = `${findWiki.alias}_id`
+        const idDict = {}
 
-    if (!hadEagerLoading) {
+        for (const row of resultArray) {
+            const rowId = row[rootIdName]
+            if (idDict[rowId]) continue
+            idDict[rowId] = true
+            orderDict[rowId] = row.row_order - 1
+        }
+    }
+
+    if (!hasEagerLoading) {
         const chars2delete = findWiki.alias.length + 1
         for (const row of resultArray) {
             for (const key of Object.keys(row)) {
@@ -19,19 +31,30 @@ export function sqliteCreateProxyArray(resultArray, findWiki, entitiesFuncArr, h
             }
             proxyArr.push(rowObj2InstanceProxy(row, findWiki, entitiesFuncArr))
         }
-        return proxyArr
+
+    }
+    else {
+        const ledger = {}
+        const instanceWiki = createInstanceWiki(findWiki)
+
+        for (const rowObj of resultArray) createNestedClassInstance(rowObj, instanceWiki, ledger, entitiesFuncArr)
+        for (const instance of Object.values(ledger)) formatAndproxifyEntityInstanceObj(instance, findWiki, entitiesFuncArr, proxyArr)
     }
 
-    const ledger = {}
-    const instanceWiki = createInstanceWiki(findWiki, is4UncalledJunctionPromise)
-
-    for (const rowObj of resultArray) createNestedClassInstance(rowObj, instanceWiki, ledger, entitiesFuncArr, is4UncalledJunctionPromise)
-    for (const instance of Object.values(ledger)) formatAndproxifyEntityInstanceObj(instance, findWiki, entitiesFuncArr, proxyArr)
+    if (isOrdered) {
+        const indexOffset = Math.min(...Object.values(orderDict)) 
+        const orderedProxyArr = new Array(Object.keys(orderDict).length)
+        for (const proxy of proxyArr) {
+            const index = orderDict[proxy.id]
+            orderedProxyArr[index - indexOffset] = proxy
+        }
+        return orderedProxyArr
+    }
     return proxyArr
 }
 
 
-function createInstanceWiki(findWiki, is4UncalledJunctionPromise) {
+function createInstanceWiki(findWiki) {
     /**@type {any}*/ const instanceWiki = {
         alias: findWiki.alias,
         columns: undefined,
@@ -42,15 +65,15 @@ function createInstanceWiki(findWiki, is4UncalledJunctionPromise) {
         uncalledJunctions: findWiki.uncalledJunctions
     }
 
-    let instanceColumnsObj = formatColumns(findWiki, is4UncalledJunctionPromise)
-    if (findWiki.junctions) instanceWiki.junctions.push(...formatJunctions4InstanceWiki(findWiki, is4UncalledJunctionPromise))
+    let instanceColumnsObj = formatColumns(findWiki)
+    if (findWiki.junctions) instanceWiki.junctions.push(...formatJunctions4InstanceWiki(findWiki))
     if (findWiki.parent) {
         let currentAliasMap = findWiki
         const rootChildAlias = findWiki.alias
         while (currentAliasMap.parent) {
-            const parentColumnsObj = formatColumns(currentAliasMap.parent, is4UncalledJunctionPromise, rootChildAlias)
+            const parentColumnsObj = formatColumns(currentAliasMap.parent, rootChildAlias)
             instanceColumnsObj = { ...instanceColumnsObj, ...parentColumnsObj }
-            if (currentAliasMap.parent.junctions) instanceWiki.junctions.push(...formatJunctions4InstanceWiki(findWiki.parent, is4UncalledJunctionPromise))
+            if (currentAliasMap.parent.junctions) instanceWiki.junctions.push(...formatJunctions4InstanceWiki(findWiki.parent))
             currentAliasMap = currentAliasMap.parent
         }
     }
@@ -59,9 +82,9 @@ function createInstanceWiki(findWiki, is4UncalledJunctionPromise) {
 }
 
 
-function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entities, is4UncalledJunctionPromise) {
+function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entities) {
     const currentAlias = instanceWiki.alias
-    const instanceId = is4UncalledJunctionPromise ? rowObj.id : rowObj[currentAlias + `_id`]
+    const instanceId = rowObj[currentAlias + `_id`]
     if (!instanceId) return
 
     const currentClassName = instanceWiki.className
@@ -76,7 +99,7 @@ function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entitie
 
     for (const junction of instanceWiki.junctions) {
         const target = object4Nesting[instanceId][junction.propertyName] ??= {}
-        createNestedClassInstance(rowObj, junction, target, entities, is4UncalledJunctionPromise)
+        createNestedClassInstance(rowObj, junction, target, entities)
     }
 }
 
@@ -100,36 +123,28 @@ export function formatAndproxifyEntityInstanceObj(instance, findWiki, entities, 
 }
 
 
-function formatColumns(aliasMap, is4UncalledJunctionPromise, /**@type {false | string}*/ rootChildAlias = false) {
+function formatColumns(aliasMap, /**@type {false | string}*/ rootChildAlias = false) {
     const returnedObj = {}
     let alias
     if (rootChildAlias) alias = rootChildAlias
     else alias = aliasMap.alias
 
     const entries = Object.entries(aliasMap.columns)
+    for (const [propertyName, columnObj] of entries) {
+        columnObj.propertyName = propertyName
+        returnedObj[alias + `_${nonSnake2Snake(propertyName)}`] = columnObj
+    }
 
-    if (is4UncalledJunctionPromise) {
-        for (const [propertyName, columnObj] of entries) {
-            columnObj.propertyName = propertyName
-            returnedObj[nonSnake2Snake(propertyName)] = columnObj
-        }
-    }
-    else {
-        for (const [propertyName, columnObj] of entries) {
-            columnObj.propertyName = propertyName
-            returnedObj[alias + `_${nonSnake2Snake(propertyName)}`] = columnObj
-        }
-    }
     return returnedObj
 }
 
 
-function formatJunctions4InstanceWiki(aliasMap, is4UncalledJunctionPromise) {
+function formatJunctions4InstanceWiki(aliasMap) {
     const entries = Object.entries(aliasMap.junctions)
     const returnedArr = []
     for (const [propertyName, junctionObj] of entries) {
         junctionObj.propertyName = propertyName
-        returnedArr.push(createInstanceWiki(junctionObj, is4UncalledJunctionPromise))
+        returnedArr.push(createInstanceWiki(junctionObj))
     }
     return returnedArr
 }
@@ -208,4 +223,8 @@ export function eagerLoadCTEsSqlite(findWiki, columnObj, cteArr = [], selectStat
         cteArr.unshift(cteStr)
     }
     return cteArr
+}
+
+export function changeStatementsPlaceholders(statements) {
+    return statements.map(statement => postgres2sqliteQueryStr(statement))
 }

@@ -1,5 +1,6 @@
 /**@typedef {import('./types').PrimitivesNoNull} PrimitivesNoNull*/
 
+import { nonSnake2Snake } from './miscFunctions.js'
 import { OrmStore } from './ormStore.js'
 
 
@@ -48,6 +49,10 @@ export class Alias {
   constructor(/**@type {string}*/ alias, /**@type {string | undefined}*/ errMsg = undefined) {
     this[aliasSymb] = alias
     if (errMsg) this.errMsg = errMsg
+  }
+
+  static createColumnId (aliasObj, propertyName) {
+    return aliasObj.alias + `.${nonSnake2Snake(propertyName)}`
   }
 }
 

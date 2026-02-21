@@ -1,4 +1,6 @@
-import { proxyType } from "./find.js"
+// import { proxyType } from "./find.js"
+
+import { proxyKeyDict } from "./find.js"
 
 export function classWiki2ScopeObj(classWiki) {
     const scopeProxy = {
@@ -32,18 +34,9 @@ export function classWiki2ScopeProxy(classWiki) {
     if (classWiki.parent) scopeObj.parent_ = classWiki2ScopeProxy(classWiki.parent)
 
     const proxy = new Proxy(scopeObj, {
-        get: (target, key, reciever) => {
-            if (
-                key === "className_"
-                || key === "parent_"
-                || key === "columns_"
-                || key === "uncalledJunctions_"
-                || key === "junctions_"
-                || key === "where_"
-                || key === "templateWhere_"
-                || key === "isArray_"
-            ) return target[key]
-            else if (key === proxyType) return 'categorizingProxy'
+        get: (target, key) => {
+            if (proxyKeyDict[key]) return target[key]
+            // else if (key === proxyType) return 'categorizingProxy'
             else if (key === "raw_") return target
             else return findPropOnScopeProxy(target, key, classWiki.className)
         },

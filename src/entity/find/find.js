@@ -1,17 +1,30 @@
 
-import { coloredBackgroundConsoleLog, getType, jsValue2SqliteValue, postgres2sqliteQueryStr } from "../../misc/miscFunctions.js"
+import { coloredBackgroundConsoleLog, getType, jsValue2SqliteValue } from "../../misc/miscFunctions.js"
 import { rowObj2InstanceProxy } from "../../proxies/instanceProxy.js"
 import { createRelationalArrayProxy } from "../../proxies/relationalArrayProxy.js"
-import { generateQueryStrWithCTEs } from "./queryBuilder.js"
 import { junctionJoin, parentJoin } from "./joins.js"
-import { relationalWhereFuncs2Statements } from "./where/templateWhere.js"
-import { whereValues2Statements } from "./where/where.js"
-import { OrmStore } from "../../misc/ormStore.js"
+import { parseTemplateWhere, whereValues2Statements } from "./where.js"
+import { createFullAndFlatAliasObj } from "./templateProxies.js"
+import { orderByValues2Statements, parseTemplateOrderBy } from "./orderBy.js"
 
-export const proxyType = Symbol('proxyType')
+// export const proxyType = Symbol('proxyType')
+
+export const proxyKeyDict = {
+    className_: true,
+    parent_: true,
+    columns_: true,
+    uncalledJunctions_: true,
+    junctions_: true,
+    isArray_: true,
+    where_: true,
+    templateWhere_: true,
+    $templateWhere_: true,
+    orderBy_: true,
+    $templateOrderBy_: true
+}
 
 export function destructureAndValidateArg(findObj) {
-    let { relations: eagerLoad, where, templateWhere } = findObj
+    let { relations: eagerLoad, where, templateWhere, orderBy, limit, offset } = findObj
 
     if (eagerLoad) {
         const type = getType(eagerLoad)
@@ -29,7 +42,22 @@ export function destructureAndValidateArg(findObj) {
         const type = getType(templateWhere)
         if (type !== "function") throw new Error(`\nInvalid value in the 'templateWhere' field of the 'find' function's argument. Expected a function.`)
     }
-    return [eagerLoad, where, templateWhere]
+
+    if (orderBy) {
+        const type = getType(orderBy)
+        if (type !== "object") throw new Error(`\nInvalid value in the 'orderBy' field of the 'find' function's argument. Expected an object.`)
+    }
+
+    if (limit) {
+        const type = getType(limit)
+        if (type !== "number") throw new Error(`\nInvalid value in the 'limit' field of the 'find' function's argument. Expected a number.`)
+    }
+
+    if (offset) {
+        const type = getType(offset)
+        if (type !== "number") throw new Error(`\nInvalid value in the 'offset' field of the 'find' function's argument. Expected a number.`)
+    }
+    return [eagerLoad, where, templateWhere, orderBy, limit, offset]
 }
 
 export function removeRelationFromUnusedRelations(classMap, key) {
@@ -39,7 +67,13 @@ export function removeRelationFromUnusedRelations(classMap, key) {
     classMap.uncalledJunctions_ = filteredUnusedRelations
 }
 
-export function parseFindWiki(findWiki, aliasBase = 'a', aliasArr = [], joinStatements = [], whereObj = { statements: [], params: [] }, selectArr = []) {
+export function parseFindWiki(findWiki,
+    aliasBase = 'a',
+    aliasArr = [],
+    joinStatements = [],
+    /**@type {any}*/ whereDict = { statements: [], params: [] },
+    orderByDict = { statements: {}, params: [] }
+) {
     let returnedWiki = findWiki
     if (aliasBase === 'a') {
         returnedWiki = {}
@@ -52,7 +86,7 @@ export function parseFindWiki(findWiki, aliasBase = 'a', aliasArr = [], joinStat
     if (parent) {
         const parentAlias = `${aliasBase}${aliasArr.length + 1}`
         if (aliasBase === 'a') joinStatements.push(parentJoin(parent, parentAlias, returnedWiki))
-        returnedWiki.parent = parseFindWiki(parent, aliasBase, aliasArr, joinStatements, whereObj, selectArr)[0]
+        returnedWiki.parent = parseFindWiki(parent, aliasBase, aliasArr, joinStatements, whereDict, orderByDict)[0]
     }
 
     if (returnedWiki.junctions) {
@@ -60,28 +94,30 @@ export function parseFindWiki(findWiki, aliasBase = 'a', aliasArr = [], joinStat
             const joinedTable = returnedWiki.junctions[key]
             const joinedTableAlias = `${aliasBase}${aliasArr.length + 1}`
             if (aliasBase === 'a') joinStatements.push(junctionJoin(joinedTable, joinedTableAlias, returnedWiki, key))
-            returnedWiki.junctions[key] = parseFindWiki(joinedTable, aliasBase, aliasArr, joinStatements, whereObj, selectArr)[0]
+            returnedWiki.junctions[key] = parseFindWiki(joinedTable, aliasBase, aliasArr, joinStatements, whereDict, orderByDict)[0]
         }
     }
-    if (returnedWiki.templateWhere) relationalWhereFuncs2Statements(returnedWiki, whereObj)
-    if (returnedWiki.where) whereValues2Statements(returnedWiki, whereObj)
-    return [returnedWiki, joinStatements, whereObj, selectArr]
+    const { templateWhere, where, orderBy, templateOrderBy } = returnedWiki
+    let templateAliasObj
+    if (templateOrderBy || templateWhere) templateAliasObj = createFullAndFlatAliasObj(returnedWiki)
+    if (templateWhere) parseTemplateWhere(templateWhere, templateAliasObj, whereDict)
+    if (where) whereValues2Statements(returnedWiki, where, whereDict)
+    if (templateOrderBy) parseTemplateOrderBy(templateOrderBy, templateAliasObj, orderByDict)
+    if (orderBy) orderByValues2Statements(returnedWiki, orderBy, orderByDict)
+
+    return [returnedWiki, joinStatements, whereDict, orderByDict]
 }
 
-export async function aliasedFindWiki2QueryRes(aliasedFindWiki, joinStatements, whereObj, eagerLoadObj, classWiki, dbConnection, forInternalFind = false) {
-    const sqlClient = OrmStore.store.sqlClient
-    let [queryString, relationsScope] = generateQueryStrWithCTEs(aliasedFindWiki, joinStatements, whereObj, eagerLoadObj, classWiki, sqlClient)
-    //@ts-ignore
-    if (forInternalFind) queryString = queryString.replace(/\bAND\b/g, `OR`)
+export async function executeFindQuery(queryStr, params, dbConnection, sqlClient) {
     try {
         let queryResult
-        if (sqlClient === "postgresql") queryResult = (await dbConnection.query(queryString, whereObj.params)).rows
+        if (sqlClient === "postgres") queryResult = (await dbConnection.query(queryStr, params)).rows
         else {
             const formattedParams = []
-            for (const param of whereObj.params) formattedParams.push(jsValue2SqliteValue(param))
-            queryResult = dbConnection.prepare(postgres2sqliteQueryStr(queryString)).all(...formattedParams)
+            for (const param of params) formattedParams.push(jsValue2SqliteValue(param))
+            queryResult = dbConnection.prepare(queryStr).all(...formattedParams)
         }
-        return [queryResult, relationsScope]
+        return queryResult
     }
     catch (e) {
         coloredBackgroundConsoleLog(`Find failed. ${e}\n`, `failure`)

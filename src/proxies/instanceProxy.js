@@ -5,7 +5,7 @@ import { fillCalledRelationsOnInstance, junctionProp2Wiki, getRelationalPropName
 import { postgresDbValHandling } from '../entity/find/sqlClients/postgresFuncs.js'
 import { sqliteDbValHandling } from '../entity/find/sqlClients/sqliteFuncs.js'
 import { LazyPromise } from '../misc/classes.js'
-import { FinalizationRegistrySymb, ORM } from '../ORM/ORM.js'
+import {  FinalizationRegistrySymb, ORM } from '../ORM/ORM.js'
 import { coloredBackgroundConsoleLog, getPropertyClassification, js2SqlTyping, nonSnake2Snake, postgres2sqliteQueryStr, snake2Pascal } from '../misc/miscFunctions.js'
 import { createNonRelationalArrayProxy } from './nonRelationalArrayProxy.js'
 import { createObjectProxy } from './objectProxy.js'
@@ -53,7 +53,7 @@ export function rowObj2InstanceProxy(resultObj, findWiki, Entities) {
                 continue
             }
 
-            if (sqlClient === `postgresql`) postgresDbValHandling(instance, propertyName, value, findWiki)
+            if (sqlClient === `postgres`) postgresDbValHandling(instance, propertyName, value, findWiki)
             else sqliteDbValHandling(instance, propertyName, value, findWiki)
         }
 
@@ -85,10 +85,10 @@ function promiseExecutor(target, key, resolve, reject) {
 
     let queryStr = `SELECT entity.* FROM ${nonSnake2Snake(mapWithProp.className)}___${nonSnake2Snake(key)}_jt jt` +
         ` LEFT JOIN ${nonSnake2Snake(joinedClassWiki.className)} entity ON jt.joined_id = entity.id WHERE jt.joining_id = `
-    queryStr += sqlClient === "postgresql" ? `$1` : `?`
+    queryStr += sqlClient === "postgres" ? `$1` : `?`
 
     let queryFunc
-    if (sqlClient === "postgresql") queryFunc = (queryStr, id) => dbConnection.query(queryStr, [id])
+    if (sqlClient === "postgres") queryFunc = (queryStr, id) => dbConnection.query(queryStr, [id])
     else queryFunc = (queryStr, id) => dbConnection.prepare(queryStr).all(id)
 
     try {

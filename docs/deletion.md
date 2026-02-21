@@ -169,7 +169,7 @@ for (const dependentClassName of Object.keys(dependentsDict)) {
   for (const instance of dependentInstances) {
     dependentProps.forEach(prop => {
       if (instance[prop].id !== deletedUserId) continue
-      // decoupling logic here...
+      // decoupling logic here
     })
   }
 }
@@ -179,8 +179,10 @@ for (const dependentClassName of Object.keys(dependentsDict)) {
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
-		-
-    Released under the MIT License
+    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <br>
+    Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
+    Apache License 2.0
+    </a> 
   </strong>
 </div>

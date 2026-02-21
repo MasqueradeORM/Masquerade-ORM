@@ -7,12 +7,14 @@ import { OrmStore } from "../misc/ormStore.js"
 import { insertProxyIntoEntityMap, proxifyEntityInstanceObj } from "../proxies/instanceProxy.js"
 import { throwDeletionErr, throwImproperDecouplingErr, validateDependentDataDecoupling } from "./delete/delete.js"
 import { insertDependentsData, internalFind } from "./delete/getDependents.js"
-import { aliasedFindWiki2QueryRes, parseFindWiki, destructureAndValidateArg } from "./find/find.js"
+import { executeFindQuery, parseFindWiki, destructureAndValidateArg } from "./find/find.js"
+import { mergeOrderByScope } from "./find/orderBy.js"
+import { createStatementsDict, queryBuilder } from "./find/queryBuilder.js"
 import { deproxifyScopeProxy, classWiki2ScopeProxy } from "./find/scopeProxies.js"
 import { postgresCreateProxyArray } from "./find/sqlClients/postgresFuncs.js"
 import { sqliteCreateProxyArray } from "./find/sqlClients/sqliteFuncs.js"
-import { mergeTemplateWhereScope } from "./find/where/templateWhere.js"
-import { mergeWhereScope } from "./find/where/where.js"
+import { mergeTemplateScope } from "./find/templateProxies.js"
+import { mergeWhereScope } from "./find/where.js"
 
 /**
  * @template T
@@ -68,18 +70,21 @@ export class Entity {
 
     let classWiki = classWikiDict[this.name]
     if (!classWiki) throw new Error(`The class '${this.name}' has not been included in the ORM boot method.`)
-    const [relationsArg, whereArg, templateWhereArg] = destructureAndValidateArg(findObj)
+    const [relationsArg, whereArg, templateWhereArg, orderByArg, limitArg, offsetArg] = destructureAndValidateArg(findObj)
     let findWiki
     const baseProxyMap = classWiki2ScopeProxy(classWiki)
     if (whereArg) mergeWhereScope(baseProxyMap, whereArg)
-    if (templateWhereArg) findWiki = mergeTemplateWhereScope(baseProxyMap, templateWhereArg)
+    if (templateWhereArg) findWiki = mergeTemplateScope(baseProxyMap, templateWhereArg, "templateWhere")
+    if (orderByArg) mergeOrderByScope(baseProxyMap, orderByArg)
     findWiki = deproxifyScopeProxy(baseProxyMap)
 
-    const [aliasedFindMap, joinStatements, whereObj] = parseFindWiki(findWiki)
-    const [queryResult, relationsScopeObj] = await aliasedFindWiki2QueryRes(aliasedFindMap, joinStatements, whereObj, relationsArg, classWiki, dbConnection)
-    const instanceArr = sqlClient === "postgresql"
+    const [aliasedScopeWiki, joinStatements, whereOutput, orderByOutput] = parseFindWiki(findWiki)
+    const statementsObj = createStatementsDict(whereOutput, orderByOutput, limitArg, offsetArg, sqlClient)
+    const [queryString, relationsScopeObj] = queryBuilder(aliasedScopeWiki, joinStatements, statementsObj, relationsArg, classWiki, sqlClient)
+    const queryResult = await executeFindQuery(queryString, statementsObj.params, dbConnection, sqlClient)
+    const instanceArr = sqlClient === "postgres"
       ? postgresCreateProxyArray(queryResult, relationsScopeObj, entities, relationsArg)
-      : sqliteCreateProxyArray(queryResult, relationsScopeObj, entities, relationsArg)
+      : sqliteCreateProxyArray(queryResult, relationsScopeObj, entities, relationsArg, !!statementsObj.orderByStr)
 
     return instanceArr
   }

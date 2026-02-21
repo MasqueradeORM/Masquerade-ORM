@@ -25,7 +25,7 @@ export function postgresCreateProxyArray(queryResult, scopeObj, entitiesFuncArr,
     return proxyArr
 }
 
-export function eagerLoadCTEsPostgres(findWiki, cteArr2d = [], isSelectedCte = false, joinsJsonBuildStatements = [], joinStatements = []) {
+export function eagerLoadCTEsPostgres(findWiki, cteArr2d = [], orderBy = false, isSelectedCte = false, joinsJsonBuildStatements = [], joinStatements = []) {
     let cteStr = ``
     let fromStatement = ``
     const baseAlias = findWiki.alias
@@ -33,7 +33,9 @@ export function eagerLoadCTEsPostgres(findWiki, cteArr2d = [], isSelectedCte = f
 
     if (isSelectedCte) {
         const rootCteIdRef = `${baseAlias}.${baseAlias}_id`
-        cteStr += `selected_cte AS ( SELECT ${rootCteIdRef} AS id, jsonb_build_object( 'id', `
+        cteStr += `selected_cte AS ( SELECT ${rootCteIdRef} AS id, `
+        if (orderBy) cteStr += `${baseAlias}.row_order, `
+        cteStr += `jsonb_build_object( 'id', `
         if (findWiki.columns.id.type === `bigint`) cteStr += `${rootCteIdRef}::text, `
         else cteStr += `${rootCteIdRef}, `
         fromStatement += ` FROM root_cte ${baseAlias} `
@@ -76,7 +78,7 @@ export function eagerLoadCTEsPostgres(findWiki, cteArr2d = [], isSelectedCte = f
             }
             else {
                 joinsJsonBuildStatements.push(`'${propertyName}', ${joinedTableObj.alias}.json`)
-                joinStatements.push(junctionJoinSelectedCte(joinedTableObj, findWiki, propertyName, 'postgresql'))
+                joinStatements.push(junctionJoinSelectedCte(joinedTableObj, findWiki, propertyName, 'postgres'))
             }
             eagerLoadCTEsPostgres(joinedTableObj, cteArr2d)
         }
@@ -124,7 +126,7 @@ export function eagerLoadCTEsPostgres(findWiki, cteArr2d = [], isSelectedCte = f
             }
             else {
                 joinsJsonBuildStatements.push(`'${propertyName}', ${joinedTableObj.alias}.json`)
-                joinStatements.push(junctionJoinCte(joinedTableObj, findWiki, propertyName, 'postgresql'))
+                joinStatements.push(junctionJoinCte(joinedTableObj, findWiki, propertyName, 'postgres'))
 
             }
             eagerLoadCTEsPostgres(joinedTableObj, cteArr2d)
@@ -168,4 +170,16 @@ export function postgresDbValHandling(instance, propertyName, value, scopeObj) {
     else if (valType === `object`) instance[propertyName] = createObjectProxy(instance, propertyName, value)
     else if (valType === `string`) instance[propertyName] = postgres2JsTyping(value, findColumnObjOnWiki(propertyName, scopeObj))
     else instance[propertyName] = value
+}
+
+
+export function offsetPlaceholders(queryStr, offsetInt) {
+    return queryStr.replace(/\$(\d+)/g, (_, num) => {
+        return `$${Number(num) + offsetInt}`
+    })
+}
+
+
+export function offsetStatementsPlaceholders(statements, offsetInt) {
+    return statements.map(statement => offsetPlaceholders(statement, offsetInt)) 
 }

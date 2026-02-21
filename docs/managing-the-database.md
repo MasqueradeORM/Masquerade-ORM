@@ -30,8 +30,10 @@ await DbManager.dropUnusedJunctions('unused_junction_table')
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
-		-
-    Released under the MIT License
+    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <br>
+    Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
+    Apache License 2.0
+    </a> 
   </strong>
 </div>

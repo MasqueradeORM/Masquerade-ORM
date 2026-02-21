@@ -8,7 +8,7 @@ export default {
     entry: './src/project.ts',
     devtool: 'source-map',
     plugins: [
-        //other plugins...
+        // other plugins
         new MasqueradePlugin() //this should be last
     ],
     module: {

@@ -1,22 +1,26 @@
 import { OrmStore } from "../../misc/ormStore.js"
 import { DependentsFinalizationRegistry, ORM } from "../../ORM/ORM.js"
-import { aliasedFindWiki2QueryRes, parseFindWiki } from "../find/find.js"
+import { executeFindQuery, parseFindWiki } from "../find/find.js"
+import { createStatementsDict, queryBuilder } from "../find/queryBuilder.js"
 import { deproxifyScopeProxy, classWiki2ScopeProxy } from "../find/scopeProxies.js"
 import { postgresCreateProxyArray } from "../find/sqlClients/postgresFuncs.js"
 import { sqliteCreateProxyArray } from "../find/sqlClients/sqliteFuncs.js"
 
-export async function internalFind(dependentMap, relationalProps, searchedId) {
+export async function internalFind(dependentWiki, relationalProps, searchedId) {
     const { sqlClient, dbConnection, entities } = OrmStore.store
-    const baseProxyMap = classWiki2ScopeProxy({ ...dependentMap })
+    const baseProxyMap = classWiki2ScopeProxy({ ...dependentWiki })
     let findWiki = deproxifyScopeProxy(baseProxyMap)
     const eagerLoadObj = {}
     for (const prop of relationalProps) internalFindSetup(prop, findWiki, eagerLoadObj, searchedId)
 
-    const [aliasedFindMap, joinStatements, whereObj] = parseFindWiki(findWiki)
-    const [queryResult, eagerLoadMap] = await aliasedFindWiki2QueryRes(aliasedFindMap, joinStatements, whereObj, eagerLoadObj, dependentMap, dbConnection, true)
-    const instanceArr = sqlClient === "postgresql" ?
-        postgresCreateProxyArray(queryResult, eagerLoadMap, entities, eagerLoadObj) :
-        sqliteCreateProxyArray(queryResult, eagerLoadMap, entities, true)
+    const [aliasedFindWiki, joinStatements, whereOutput, orderByOutput] = parseFindWiki(findWiki)
+    const statementsObj = createStatementsDict(whereOutput, orderByOutput, undefined, undefined, sqlClient)
+    let [queryString, eagerLoadWiki] = queryBuilder(aliasedFindWiki, joinStatements, statementsObj, eagerLoadObj, dependentWiki, sqlClient)
+    queryString = queryString.replace(/\bAND\b/g, `OR`)
+    const queryResult = await executeFindQuery(queryString, statementsObj.params, dbConnection, sqlClient)
+    const instanceArr = sqlClient === "postgres" ?
+        postgresCreateProxyArray(queryResult, eagerLoadWiki, entities, eagerLoadObj) :
+        sqliteCreateProxyArray(queryResult, eagerLoadWiki, entities, true)
 
     return instanceArr
 }

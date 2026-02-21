@@ -6,7 +6,7 @@ export const referencesSymb = Symbol("references")
 
 
 export const js2db = {
-    postgresql: {
+    postgres: {
         string: "TEXT",
         number: "DOUBLE PRECISION",
         integer: "INTEGER",

@@ -30,7 +30,7 @@ export function junctionJoinCte(joinedTable, baseTable, junctionPropertyName, /*
     const junctionAlias = `jt_${baseTableAlias}_${joinedTableAlias}`
 
     let queryStr = `\nLEFT JOIN ${junctionName} ${junctionAlias} ON ${baseTableAlias}.id = ${junctionAlias}.joining_id `
-    if (sqlClient === 'postgresql') queryStr += ` \nLEFT JOIN ${joinedTableAlias}_cte ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.id \n`
+    if (sqlClient === 'postgres') queryStr += ` \nLEFT JOIN ${joinedTableAlias}_cte ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.id \n`
     else queryStr += ` \nLEFT JOIN ${joinedTableAlias}_cte ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.${joinedTableAlias}_id \n`
     return queryStr
 }
@@ -46,7 +46,7 @@ export function junctionJoinSelectedCte(joinedTable, baseTable, junctionProperty
 
     let queryStr = `\nLEFT JOIN ${junctionName} ${junctionAlias} ON ${baseTableAlias}.${baseTableAlias}_id = ${junctionAlias}.joining_id `
 
-    if (sqlClient === 'postgresql') queryStr += ` \nLEFT JOIN ${joinedTableAlias}_cte ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.id \n`
+    if (sqlClient === 'postgres') queryStr += ` \nLEFT JOIN ${joinedTableAlias}_cte ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.id \n`
     else queryStr += ` \nLEFT JOIN ${joinedTableAlias}_cte ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.${joinedTableAlias}_id \n`
     return queryStr
 }

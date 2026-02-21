@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from "node:assert"
 import * as classes from './testing-classes.js'
 import { resetPostgresDb, initORM, createConfigObj } from "./testInit.js"
-import { sql } from '../src/entity/find/where/whereArgsFunctions.js'
+import { sql } from '../src/entity/find/findArgFuncs.js'
 import { generateFamiliesAndHouses } from "./generationFuncs.js"
 import { validateUpdatedAt } from "./miscFunctions.js"
 import { OrmStore } from '../src/misc/ormStore.js'
@@ -149,7 +149,7 @@ test('test 2 - promises and instance logging', async (t) => {
 
   await t.test('overwriting promises without loading', async (t) => {
     let firstRelationalTest = (await House.find({ where: { id: 1 } }))[0]
-    const mrClean = (firstRelationalTest.owner = new Person('Mr Clean', 30))
+    const mrClean = firstRelationalTest.owner = new Person('Mr Clean', 30)
     firstRelationalTest.tenants = [mrClean, new Person('Mrs Clean', 24)]
 
     firstRelationalTest = (await House.find({ where: { id: 1 } }))[0]
@@ -162,11 +162,17 @@ test('test 2 - promises and instance logging', async (t) => {
       })
     )[0]
 
-    await t.test('1-to-1 relational promise assignment', async () => {
+    t.test('1-to-1 correctly set value after promise-2-value assignment', () => {
       assert.strictEqual(firstRelationalTest?.owner?.fullName, 'Mr Clean')
     })
 
-    await t.test('1-to-many relational promise assignment', async () => {
+    t.test('1-to-many relational array sorting', () => {
+      firstRelationalTest.tenants?.sort((a, b) => b.age - a.age)
+      const sortCheck = firstRelationalTest.owner && firstRelationalTest.tenants?.includes(firstRelationalTest.owner)
+      assert.strictEqual(sortCheck, true)
+    })
+
+    t.test('1-to-many correctly set value after promise-2-value assignment', () => {
       assert.strictEqual(firstRelationalTest?.tenants?.length, 2)
       assert.strictEqual(firstRelationalTest.tenants[0].fullName, 'Mr Clean')
       assert.strictEqual(firstRelationalTest.tenants[1].fullName, 'Mrs Clean')

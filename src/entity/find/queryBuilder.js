@@ -3,42 +3,71 @@ import { parseFindWiki } from "./find.js"
 import { mergeRelationsScope } from "./relations.js"
 import { deproxifyScopeProxy, classWiki2ScopeProxy } from "./scopeProxies.js"
 import { parentJoin } from "./joins.js"
-import { eagerLoadCTEsPostgres } from "./sqlClients/postgresFuncs.js"
-import { eagerLoadCTEsSqlite } from "./sqlClients/sqliteFuncs.js"
+import { eagerLoadCTEsPostgres, offsetStatementsPlaceholders } from "./sqlClients/postgresFuncs.js"
+import { changeStatementsPlaceholders, eagerLoadCTEsSqlite } from "./sqlClients/sqliteFuncs.js"
 
-export function generateQueryStrWithCTEs(findWiki, joinStatements, whereObj, eagerLoad, classWiki, sqlClient) {
-    let flatFilteredCte = generateFlatFilteredCte(findWiki, joinStatements, whereObj.statements)
+
+/**
+ * @returns {[string, any]}
+ */
+export function queryBuilder(findWiki, joinStatements, statementsObj, eagerLoad, classWiki, sqlClient) {
+    const { orderByStr, limitStr, offsetStr } = statementsObj
+    let flatFilteredCte = generateFlatFilteredCte(findWiki, joinStatements, statementsObj, sqlClient)
     let relationsWiki = classWiki2ScopeProxy(classWiki)
     let eagerLoadCteArr
-
+    let queryStr
+    let selectionStr
     if (eagerLoad) {
         mergeRelationsScope(relationsWiki, eagerLoad)
         relationsWiki = deproxifyScopeProxy(relationsWiki, true)
         const columnObj = generateColumnObj(relationsWiki)
+        orderingPaginationContext(columnObj, orderByStr, limitStr, offsetStr)
         let rootCte = generateRootCte(relationsWiki, columnObj)
         const [aliasedFindMap] = parseFindWiki(relationsWiki, 'b')
-        eagerLoadCteArr = generateEagerLoadCTEsArr(aliasedFindMap, columnObj, sqlClient)
-        let queryStr = flatFilteredCte + `, ` + rootCte + `, ` + eagerLoadCteArr.join(`, `)
-        if (sqlClient === `postgresql`) queryStr += ` SELECT json FROM selected_cte`
-        else queryStr += ` SELECT * FROM selected_cte`
-
-        return [queryStr, relationsWiki]
+        eagerLoadCteArr = generateEagerLoadCTEsArr(aliasedFindMap, columnObj, orderByStr, sqlClient)
+        queryStr = flatFilteredCte + `, ` + rootCte + `, ` + eagerLoadCteArr.join(`, `)
+        selectionStr = ` FROM selected_cte`
+        if (orderByStr && sqlClient !== 'sqlite') selectionStr += ` ORDER BY row_order`
+        if (sqlClient === `postgres`) selectionStr = ` SELECT json` + selectionStr
+        else selectionStr = ` SELECT *` + selectionStr
     }
     else {
         relationsWiki = deproxifyScopeProxy(relationsWiki, true)
         relationsWiki.alias = `b1`
         const columnObj = generateColumnObj(findWiki, false)
+        orderingPaginationContext(columnObj, orderByStr, limitStr, offsetStr)
         let rootCte = generateRootCte(findWiki, columnObj)
-        let queryStr = flatFilteredCte + `, ` + rootCte
-        return [queryStr + ` SELECT * FROM root_cte`, relationsWiki]
+        queryStr = flatFilteredCte + `, ` + rootCte
+        selectionStr = ` SELECT * FROM root_cte`
+        if (orderByStr && sqlClient !== 'postgres') selectionStr += ` ORDER BY row_order`
     }
+    return [queryStr + selectionStr, relationsWiki]
 }
 
-function generateFlatFilteredCte(findWiki, joinStatements, whereStatements, queryStr = ``) {
-    queryStr += `SELECT DISTINCT ${findWiki.alias}.id FROM ${nonSnake2Snake(findWiki.className)} a1 `
+function generateFlatFilteredCte(findWiki, joinStatements, statementsObj, sqlClient, queryStr = `SELECT `) {
+    const { whereStr, orderByStr, limitStr, offsetStr } = statementsObj
+    const { alias, className, aggregate } = findWiki
+    const idRefStr = `${alias}.id`
+    queryStr += aggregate ? `${idRefStr}` : `DISTINCT ${idRefStr}`
+    if (orderByStr) queryStr += orderByStr
+    queryStr += ` FROM ${nonSnake2Snake(className)} ${alias} `
     if (joinStatements.length) queryStr += joinStatements.join(` `) + ` `
-    if (whereStatements.length) queryStr += `WHERE (` + whereStatements.join(`) AND (`) + `) `
-    return `WITH root_ids AS (${queryStr})`
+    if (whereStr) queryStr += whereStr
+    if (aggregate) queryStr += ` GROUP BY ${idRefStr}`
+    queryStr = `WITH root_ids AS (${queryStr})`
+
+    if (limitStr || offsetStr) {
+        let paginationCte = `SELECT id`
+        if (orderByStr) paginationCte += `, row_order`
+        paginationCte += ` FROM root_ids`
+        if (limitStr) paginationCte += limitStr
+        if (offsetStr) {
+            if (!limitStr && sqlClient === 'sqlite') paginationCte += ` LIMIT -1`
+            paginationCte += offsetStr
+        }
+        return queryStr + `, pagination_cte AS (${paginationCte})`
+    }
+    return queryStr
 }
 
 function generateRootCte(findWiki, columnObj, aliasBase = 'b') {
@@ -62,25 +91,31 @@ function generateRootCte(findWiki, columnObj, aliasBase = 'b') {
         currentWiki.alias = `${aliasBase}${i}`
     }
 
+    let selectFrom
     let columnNamingStr = ``
     for (const [index, arr] of snakeCasedColumnNames2dArr.entries())
         columnNamingStr += arr.map(name => `b${index + 1}.${name} AS b1_${name}`).join(`, `) + `, `
 
-    let cteStr = `root_cte AS (SELECT ${columnNamingStr.slice(0, -2)} FROM root_ids r JOIN ${nonSnake2Snake(findWiki.className)} ${aliasBase}1 ON ${aliasBase}1.id = r.id`
+    if (columnObj.orderBy) columnNamingStr += `r.row_order, `
+
+    if (columnObj.limit || columnObj.offset) selectFrom = `pagination_cte`
+    else selectFrom = `root_ids`
+
+    let cteStr = `root_cte AS (SELECT ${columnNamingStr.slice(0, -2)} FROM ${selectFrom} r JOIN ${nonSnake2Snake(findWiki.className)} ${aliasBase}1 ON ${aliasBase}1.id = r.id`
     if (findWiki.parent) return cteStr + ` ` + joinStatements.join(` `) + `)`
     else return cteStr + `)`
 }
 
 
-function generateEagerLoadCTEsArr(findWiki, columnObj, sqlClient) {
-    if (sqlClient === "postgresql") return eagerLoadCTEsPostgres(findWiki, [], true)
+function generateEagerLoadCTEsArr(findWiki, columnObj, orderBy, sqlClient) {
+    if (sqlClient === "postgres") return eagerLoadCTEsPostgres(findWiki, [], orderBy, true)
     else return eagerLoadCTEsSqlite(findWiki, columnObj)
 }
 
 
 function generateColumnObj(findWiki, relationalRecusrion = true, columnObj = {}) {
     const className = findWiki.className
-    if (columnObj[className]) return
+    if (columnObj[className]) return columnObj
 
     const classColumnObj = columnObj[className] = {}
     const columnNames = Object.keys(findWiki.columns)
@@ -92,4 +127,57 @@ function generateColumnObj(findWiki, relationalRecusrion = true, columnObj = {})
         for (const key of Object.keys(relations)) generateColumnObj(relations[key], relationalRecusrion, columnObj)
     }
     return columnObj
+}
+
+function orderingPaginationContext(columnObj, orderBy, limit, offset) {
+    if (orderBy) columnObj.orderBy = true
+    if (limit) columnObj.limit = true
+    if (offset) columnObj.offset = true
+}
+
+
+export function createStatementsDict(whereOutput, orderByOutput, limitArg, offsetArg, sqlClient) {
+    /**@type {any}*/ const statementsDict = {
+        whereStr: undefined,
+        orderByStr: undefined,
+        limitStr: undefined,
+        offsetStr: undefined
+    }
+    let queryParams
+    orderByOutput.statements = [...Object.values(orderByOutput.statements)]
+
+    if (sqlClient === `sqlite`) {
+        queryParams = [...whereOutput.params, ...orderByOutput.params]
+        whereOutput.statements = changeStatementsPlaceholders(whereOutput.statements)
+        orderByOutput.statements = changeStatementsPlaceholders(orderByOutput.statements)
+    }
+    else {
+        queryParams = [...whereOutput.params, ...orderByOutput.params]
+        const offsetInt = whereOutput.params.length
+        if (offsetInt) orderByOutput.statements = offsetStatementsPlaceholders(orderByOutput.statements, offsetInt)
+    }
+
+    if (whereOutput.statements.length) statementsDict.whereStr = createWhereStr(whereOutput)
+    if (orderByOutput.statements.length) statementsDict.orderByStr = createOrderByStr(orderByOutput)
+    if (limitArg | offsetArg) {
+        const placeholder = () => sqlClient === 'postgres' ? `$${queryParams.length + 1}` : `?`
+        if (limitArg) {
+            statementsDict.limitStr = ` LIMIT ${placeholder()}`
+            queryParams.push(limitArg)
+        }
+        if (offsetArg) {
+            statementsDict.offsetStr = ` OFFSET ${placeholder()}`
+            queryParams.push(offsetArg)
+        }
+    }
+    statementsDict.params = queryParams
+    return statementsDict
+}
+
+function createWhereStr(whereOutput) {
+    return ` WHERE (` + whereOutput.statements.join(`) AND (`) + `)`
+}
+
+function createOrderByStr(orderByOutput) {
+    return `, ROW_NUMBER() OVER (ORDER BY ` + orderByOutput.statements.join(`, `) + `) AS row_order`
 }

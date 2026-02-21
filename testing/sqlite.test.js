@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from "node:assert"
 import * as classes from './testing-classes.js'
 import { initORM, createConfigObj } from "./testInit.js"
-import { sql } from '../src/entity/find/where/whereArgsFunctions.js'
+import { sql } from '../src/entity/find/findArgFuncs.js'
 import { generateFamiliesAndHouses } from "./generationFuncs.js"
 import { validateUpdatedAt } from "./miscFunctions.js"
 import { OrmStore } from '../src/misc/ormStore.js'
@@ -44,8 +44,7 @@ test('test 1 - find basics and change logging', async (t) => {
 
         const testInstanceChangeLog = dbChanges.NonRelationalClass2[typeTestId]
 
-        /** @type {any} */
-        let expectedVal = {
+        /**@type {any}*/ let expectedVal = {
             booleanField: false,
             floatVal: 12.33,
             someInt: 7,
@@ -162,11 +161,11 @@ test('test 2 - promises and instance logging', async (t) => {
             })
         )[0]
 
-        await t.test('1-to-1 relational promise assignment', async () => {
+        await t.test('1-to-1 correctly set value after promise-2-value assignment', async () => {
             assert.strictEqual(firstRelationalTest?.owner?.fullName, 'Mr Clean')
         })
 
-        await t.test('1-to-many relational promise assignment', async () => {
+        await t.test('1-to-many correctly set value after promise-2-value assignment', async () => {
             assert.strictEqual(firstRelationalTest?.tenants?.length, 2)
             assert.strictEqual(firstRelationalTest.tenants[0].fullName, 'Mr Clean')
             assert.strictEqual(firstRelationalTest.tenants[1].fullName, 'Mrs Clean')

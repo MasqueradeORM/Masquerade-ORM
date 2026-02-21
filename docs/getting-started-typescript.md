@@ -65,8 +65,7 @@ const yourDbConnection = new DatabaseSync('your-db-name')
 **Postgresql**
 
 ```ts
-import pkg from 'pg'
-const { Pool } = pkg
+import { Pool } from 'pg'
 
 // Create a pool instance
 const yourDbConnection = new Pool({
@@ -115,7 +114,7 @@ import { MasqueradePlugin } from './plugin.js'
 
 //other fields
   plugins: [
-        //other plugins...
+        // other plugins
         new MasqueradePlugin() //this should be last
     ],
     module: {
@@ -154,8 +153,10 @@ await ORM.typescriptBoot(ormConfig, classes, moreClasses, someClass)
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
-		-
-    Released under the MIT License
+    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <br>
+    Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
+    Apache License 2.0
+    </a> 
   </strong>
 </div>

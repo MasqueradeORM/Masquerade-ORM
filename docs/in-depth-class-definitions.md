@@ -122,7 +122,7 @@ import { Entity } from 'masquerade-orm'
 class ClassA extends Entity {
     // to avoid bugs put 'ormClassSettings_' as the first property.
     static ormClassSettings_ = {idType: 'INT'} // | 'UUID' | 'BIGINT'
-    // properties and constructor...
+    // properties and constructor
 }
 ``` 
 
@@ -134,12 +134,12 @@ Setting the `idType` is only possible on a **direct child of Entity**.
 import { Entity } from 'masquerade-orm'
 
 class ClassA extends Entity {
-    // properties and constructor...
+    // properties and constructor
 }
 
 class ClassB extends ClassA {
     static ormClassSettings_ = {idType: 'INT'}
-    // properties and constructor...
+    // properties and constructor
 }
 ```
 In the example above, `idType` has no effect because `ClassB` does not extend `Entity`. If `static ormClassSettings_ = {idType: 'INT'}` was instead on `ClassA`, the id type of `ClassA` and all of its descendants would have an id type of `integer`.
@@ -155,7 +155,7 @@ Put the decorator `/**@abstract*/` right above the constructor of the class.
 import { Entity } from 'masquerade-orm'
 
 class User extends Entity {
-    // properties...
+    // properties
 
     /**@abstract*/
     constructor() {
@@ -199,8 +199,10 @@ EntityExtendingClass[] | undefined // main type 'EntityExtendingClass'
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">MasqueradeORM </a>
-		-
-    Released under the MIT License
+    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <br>
+    Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
+    Apache License 2.0
+    </a> 
   </strong>
 </div>

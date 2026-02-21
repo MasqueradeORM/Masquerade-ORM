@@ -3,7 +3,7 @@ import { createSourceFile, SyntaxKind, ScriptKind, ScriptTarget } from "typescri
 import { js2SqlTyping, nonSnake2Snake, snake2Pascal, array2String, coloredBackgroundConsoleLog } from "../misc/miscFunctions.js"
 import { dependenciesSymb, floatColumnTypes, referencesSymb } from "../misc/constants.js"
 import { uuidv7 } from "uuidv7"
-import { DbManagerStore } from "./DbManager.js"
+import { DbManagerStore } from "../dbManager/DbManagerStore.js"
 import { OrmStore } from "../misc/ormStore.js"
 /**@typedef {import('../misc/types.js').TABLE} TABLE */
 /**@typedef {import('../misc/types.js').DbPrimaryKey} DbPrimaryKey */
@@ -14,7 +14,7 @@ export async function compareAgainstDb(tablesDict) {
     let queryFunc
     let strFunc
     let dbTableNames
-    if (sqlClient === `postgresql`) {
+    if (sqlClient === `postgres`) {
         queryFunc = dbConnection.query.bind(dbConnection)
         strFunc = (tableName) => `SELECT column_name
                               FROM information_schema.columns
@@ -37,7 +37,7 @@ export async function compareAgainstDb(tablesDict) {
     }
 
     for (const [tableName, tableObj] of Object.entries(tablesDict)) {
-        const tableColumns = sqlClient === `postgresql`
+        const tableColumns = sqlClient === `postgres`
             ? (await queryFunc(strFunc(tableName))).rows.map(rowObj => snake2Pascal(rowObj.column_name, true))
             : await queryFunc(strFunc(tableName)).map(tableName => snake2Pascal(tableName, true))
 
@@ -99,7 +99,7 @@ export async function getInitIdValues(tablesDict) {
     const idLogger = ormStore.idLogger = {}
     const { dbConnection, sqlClient } = ormStore
     let queryFunc
-    if (sqlClient === `postgresql`) queryFunc = dbConnection.query.bind(dbConnection)
+    if (sqlClient === `postgres`) queryFunc = dbConnection.query.bind(dbConnection)
     else queryFunc = (query) => dbConnection.prepare(query).all()
 
     const queryFuncWithTryCatch = async (query) => {
@@ -123,7 +123,7 @@ export async function getInitIdValues(tablesDict) {
             idLogger[snake2Pascal(tableName)] = idVal
             continue
         }
-        let id = sqlClient === `postgresql` ? res.rows[0]?.id : res[0]?.id
+        let id = sqlClient === `postgres` ? res.rows[0]?.id : res[0]?.id
         if (id) {
             id = idType === `number` ? parseInt(id, 10) : BigInt(id)
             idLogger[snake2Pascal(tableName)] = id
@@ -653,7 +653,7 @@ export function columnEntries2QueryStr(columnEntries) {
     let queryStr = ``
     const client = OrmStore.store.sqlClient
 
-    if (client === "postgresql") {
+    if (client === "postgres") {
         for (const column of columnEntries) {
             const columnName = nonSnake2Snake(column[0])
 
@@ -696,7 +696,7 @@ export function sqlTypeTableObj(tableObj, sqlClient) {
     //if (tableObj.parent === `entity`) delete tableObj.parent
     const columnObjectsArr = Object.values(tableObj.columns)
 
-    if (sqlClient === `postgresql`) {
+    if (sqlClient === `postgres`) {
         for (const columnObj of columnObjectsArr) {
             if (columnObj.isArray) {
                 if (columnObj.type === `object`) columnObj.type = `JSONB`
@@ -744,7 +744,7 @@ export async function sendQueryFromQueryObj(queryObj, queryFunc) {
 export async function sendTableCreationQueries(tableCreationObj) {
     const { dbConnection, sqlClient } = OrmStore.store
     let queryFunc
-    if (sqlClient === "postgresql") queryFunc = dbConnection.query.bind(dbConnection)
+    if (sqlClient === "postgres") queryFunc = dbConnection.query.bind(dbConnection)
     else queryFunc = (query) => dbConnection.exec(query)
 
     const queryFuncWithTryCatch = async (query) => {
@@ -845,7 +845,7 @@ export async function alterTables(tables2alterArr) {
     if (!tables2alterArr.length) return
 
     const { sqlClient, dbConnection, classWikiDict } = OrmStore.store
-    const queryFunc = sqlClient === `postgresql`
+    const queryFunc = sqlClient === `postgres`
         ? async (alterStatements, junctionStatements) => {
             try {
                 if (alterStatements.length) await dbConnection.query(alterStatements.join(`, `))
@@ -908,7 +908,7 @@ export async function alterTables(tables2alterArr) {
 
 function type2DefaultValue(type, isArray, sqlClient) {
     //need to get correct types from tableObj.newColumns
-    if (sqlClient === `postgresql`) {
+    if (sqlClient === `postgres`) {
         if (isArray) {
             const typeCast = js2SqlTyping(sqlClient, type)
             return `ARRAY[]::${typeCast}[]`

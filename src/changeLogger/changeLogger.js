@@ -48,7 +48,7 @@ export class ChangeLogger {
             paramIndex = handleRelationalChanges(tableName, junctionChangesObj, junctionsQueryObj, paramIndex, sqlClient)
         }
 
-        if (sqlClient === "postgresql") await postgresSaveQuery(deletedUncalledRelationsArr, classesQueryObj, junctionsQueryObj, deletedInstancesArr, paramIndex, dbConnection)
+        if (sqlClient === "postgres") await postgresSaveQuery(deletedUncalledRelationsArr, classesQueryObj, junctionsQueryObj, deletedInstancesArr, paramIndex, dbConnection)
         else sqliteSaveQuery(deletedUncalledRelationsArr, classesQueryObj, junctionsQueryObj, deletedInstancesArr, dbConnection)
     }
 }

@@ -31,7 +31,7 @@ function passEntityColumnsToAncestorMaps(id, entityInstanceChangeObj, classWiki,
     classCteMap[id][newEntityInstanceSymb] = isNewEntityInstance
     currentWiki = currentWiki.parent ?? currentWiki
   }
-  cteMap.tables[currentWiki.className][id].updatedAt = client === "postgresql" ? new Date() : new Date().toISOString()
+  cteMap.tables[currentWiki.className][id].updatedAt = client === "postgres" ? new Date() : new Date().toISOString()
 }
 
 export function handleRelationalChanges(tableName, tableChangesObj, queryObj, paramIndex, sqlClient) {
@@ -58,7 +58,7 @@ export function handleRelationalChanges(tableName, tableChangesObj, queryObj, pa
   removedIds = removedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, idTypeArr[0]), joinedIdArr])
 
   if (addedIds.length) [target.newRelationsObj, paramIndex] = junctionTableInsertion(addedIds, tableName, paramIndex, sqlClient)
-  if (removedIds.length) [target.deletedRelationsObj, paramIndex] = sqlClient === `postgresql`
+  if (removedIds.length) [target.deletedRelationsObj, paramIndex] = sqlClient === `postgres`
     ? junctionTableRemovalPostgres(removedIds, tableName, paramIndex, idTypeArr)
     : junctionTableRemovalSqlite(removedIds, tableName)
   return paramIndex
@@ -73,12 +73,12 @@ function junctionTableInsertion(addedIds, tableName, paramIndex, sqlClient) {
     const baseId = baseAndJoinedIds[0]
     const joinedIds = baseAndJoinedIds[1]
     while (joinedIds.length) {
-      queryStr += sqlClient === "postgresql" ? `($${paramIndex++}, $${paramIndex++}), ` : `(?, ?), `
+      queryStr += sqlClient === "postgres" ? `($${paramIndex++}, $${paramIndex++}), ` : `(?, ?), `
       params.push(baseId, joinedIds.pop())
     }
   }
   queryStr = queryStr.slice(0, -2)
-  if (sqlClient === "postgresql") queryStr += ` RETURNING 1`
+  if (sqlClient === "postgres") queryStr += ` RETURNING 1`
 
   const returnedJunctionObj = { queryStr, params }
   return [returnedJunctionObj, paramIndex]
@@ -121,13 +121,13 @@ function insertNewRows(newRows, tableName, queryObj, paramIndex, client) {
   let queryStr = `INSERT INTO ${snakedTableName} (${columns.map(column => nonSnake2Snake(column)).join(', ')}) VALUES `
 
   for (const instance of newRows) {
-    if (client === "postgresql") queryStr += `(${columns.map(column => `$${paramIndex++}`).join(', ')}), \n`
+    if (client === "postgres") queryStr += `(${columns.map(column => `$${paramIndex++}`).join(', ')}), \n`
     else queryStr += `(${columns.map(column => `?`).join(', ')}), \n`
 
     for (const column of columns) target.params[i++] = instance[column]
   }
 
-  if (client === "postgresql") target.queryStr = queryStr.slice(0, -3) + ` RETURNING 1`
+  if (client === "postgres") target.queryStr = queryStr.slice(0, -3) + ` RETURNING 1`
   else target.queryStr = queryStr.slice(0, -3)
   return paramIndex
 }
@@ -148,12 +148,12 @@ function updateRows(updatedRows, tableName, queryObj, paramIndex, client) {
 
     queryStr += `UPDATE ${snakedTableName} SET `
     for (const [columnName, val] of updatedColumns) {
-      if (client === "postgresql") queryStr += `${nonSnake2Snake(columnName)} = $${paramIndex++}, `
+      if (client === "postgres") queryStr += `${nonSnake2Snake(columnName)} = $${paramIndex++}, `
       else queryStr += `${nonSnake2Snake(columnName)} = ?, `
 
       params.push(val)
     }
-    if (client === "postgresql") queryStr = queryStr.slice(0, -2) + ` WHERE id = $${paramIndex++} RETURNING 1`
+    if (client === "postgres") queryStr = queryStr.slice(0, -2) + ` WHERE id = $${paramIndex++} RETURNING 1`
     else queryStr = queryStr.slice(0, -2) + ` WHERE id = ?`
 
     params.push(rowId)
@@ -210,7 +210,7 @@ export function organizeChangeObj(dbChanges, cteMap, client) {
           const entityInstanceMap = tableCteMap[instanceId] ??= {}
           //tableCteMap[idTypeSymb] = [mapWithProp.columns.id.type, columnType.type]
 
-          if (client === "postgresql") entityInstanceMap[property] = entityInstanceChangeObj[property]
+          if (client === "postgres") entityInstanceMap[property] = entityInstanceChangeObj[property]
           else {
             const value = entityInstanceChangeObj[property]
             entityInstanceMap[property] = jsValue2SqliteValue(value)

@@ -7,7 +7,7 @@ import { setUpdatedAtValue } from "./instanceProxy.js"
 export function createRelationalArrayProxy(instance, propertyName, array = [], /**@type {string | undefined}*/ arrElementValidType = undefined) {
     const instanceId = instance.id
     const instanceClass = instance.constructor.name
-    const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
+    //const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
     const eventListenersObj = {}
     //if arrElementValidType is undefined, it just means that the array we are proxifying is an array we got from the db, so the typing is correct.
     if (arrElementValidType) array = getValidTypedArray(array, arrElementValidType, true)
@@ -18,14 +18,20 @@ export function createRelationalArrayProxy(instance, propertyName, array = [], /
         get(target, key, receiver) {
             if (key === "source_") return target
             else if (key === "eListener_") return eventListenersObj
-            else {
-                if (key === "includes") return (instance) => {
-                    //@ts-ignore
-                    if (eventListenersObj[instance.id]) return true
-                    return false
-                }
-                return target[key]
+
+            if (key === "includes") return (instance) => {
+                //@ts-ignore
+                if (eventListenersObj[instance.id]) return true
+                return false
             }
+            else if (key === "sort") {
+                //for (const key in eventListenersObj) delete eventListenersObj[key]
+                return function (sortArgFunc) {
+                    const sorted = Array.prototype.sort.call(target, sortArgFunc)
+                    return sorted
+                }
+            }
+            return target[key]
         },
         set(/**@type {any[]}*/ target, key, value, receiver) {
             if (key === "length") return Reflect.set(target, key, value, receiver)
@@ -39,13 +45,12 @@ export function createRelationalArrayProxy(instance, propertyName, array = [], /
 
 
 export function relationalArrayProxySetHandler(target, key, newInstanceProxy, propertyName, instanceId, eventListenersObj, instanceClass) {
+    if (eventListenersObj[newInstanceProxy.id]) throw new Error(`Do not insert duplicate entity instances into a relational array. Use the 'includes' method for O(1) lookup.`)
     const index = parseInt(key)
     if (index > -1) {
         const oldInstanceProxy = target[index]
         const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
         const instanceChangesObj = classChangeObj[instanceId] ??= {}
-
-        if (eventListenersObj[newInstanceProxy.id]) throw new Error(`Do not insert duplicate entity instances into a relational array. Use the 'includes' method for O(1) lookup.`)
         const relationChangeLogger = instanceChangesObj[propertyName] ??= { added: [], removed: [] }
 
         if (oldInstanceProxy) {
@@ -54,6 +59,7 @@ export function relationalArrayProxySetHandler(target, key, newInstanceProxy, pr
             else relationChangeLogger.removed.push(oldInstanceProxy.id)
 
             const oldProxyEventEmitter = oldInstanceProxy.eEmitter_
+            // do not emit event to array any longer
             oldProxyEventEmitter.removeEventListener("delete", eventListenersObj[oldInstanceProxy.id])
             delete eventListenersObj[oldInstanceProxy.id]
         }
@@ -111,10 +117,11 @@ export function addEventListener2ArrayProxy(proxy, array, eventListenersObj, idO
     const eventFunc = (event) => {
         if (proxy._isDeleted_) return
         const id2delete = event.detail.id
+        delete eventListenersObj[id2delete]
         // console.log(`Delete event sent from ${id2delete}_${proxy.constructor.name} to proxy array`)
         const index = array.findIndex(proxy => proxy.id === id2delete)
+        if (index === -1) return
         array.splice(index, 1)
-        delete eventListenersObj[id2delete]
         const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
         const instanceChangesObj = classChangeObj[idOfInstanceWithArray] ??= {}
         logRelationalArrayRemoval(proxy, propertyOfArray, id2delete, instanceChangesObj)

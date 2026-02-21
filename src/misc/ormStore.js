@@ -8,7 +8,7 @@ export class OrmStore {
 
     static clearDbChanges() {
         const dbChanges = this.store.dbChangesObj
-        for (const key of Object.keys(dbChanges)) delete dbChanges[key]
+        for (const key in dbChanges) delete dbChanges[key]
     }
 
     static getClassWiki(instanceClass) {
