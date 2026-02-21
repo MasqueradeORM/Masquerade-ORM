@@ -2,15 +2,26 @@
 
   <a href="#">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/DARK-THEME-LOGO-transperent-bg.png">
-        <source  media="(prefers-color-scheme: light)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/LIGHT-THEME-LOGO-transperent-bg.png">
-        <img style="max-width: 33%; height: auto;" alt="MasqueradeORM Logo" src="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/LIGHT-THEME-LOGO-transperent-bg.png">
+        <source media="(prefers-color-scheme: dark)"
+         srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/DARK-THEME-LOGO-transperent-bg.png">
+        <source  media="(prefers-color-scheme: light)" 
+        srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/LIGHT-THEME-LOGO-transperent-bg.png">
+        <img style="max-width: 33%; height: auto;" alt="MasqueradeORM Logo" 
+        src="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/LIGHT-THEME-LOGO-transperent-bg.png">
     </picture>
   </a>
   <br><br>
   <a href="">
       <br><br>
-    <img src="https://img.shields.io/badge/License-Apache_2.0-teal.svg" alt="Apache License 2.0"/>
+  <picture>
+        <source media="(prefers-color-scheme: dark)"
+         srcset="https://img.shields.io/badge/License-Apache_2.0-gold">
+        <source  media="(prefers-color-scheme: light)" 
+        srcset="https://img.shields.io/badge/License-Apache_2.0-teal">
+        <img alt="Apache License 2.0" 
+        src="https://img.shields.io/badge/License-Apache_2.0-teal"
+        >
+  </picture>
   </a>
   <br><br>
 </div>
@@ -162,6 +173,16 @@ user.friendList.pop()
 </div>
 
 
+<style>
+  .badge-light, .badge-dark { display: none; }
 
+  @media (prefers-color-scheme: light) {
+    .badge-light { display: inline; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .badge-dark { display: inline; }
+  }
+</style>
 
 
