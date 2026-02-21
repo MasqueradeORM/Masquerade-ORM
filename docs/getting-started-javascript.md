@@ -61,7 +61,7 @@ import { DatabaseSync } from 'node:sqlite'
 const yourDbConnection = new DatabaseSync('your-db-name')
 ```
 
-**Postgresql**
+**PostgreSQL**
 
 ```js
 import { Pool } from 'pg'

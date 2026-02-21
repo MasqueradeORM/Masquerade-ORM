@@ -131,7 +131,7 @@ await User.find({
         // donations between 1,200 and 5,700 cents (exclusive)
         donations: sql`1200 < # AND # < 5700`, 
 
-        // account's age is between one and two years old.
+        // account's age is between one and two years old (inclusive).
         createdAt: sql`${twoYearsAgo} <= # AND # <= ${oneYearAgo}` 
     }
 })
@@ -154,11 +154,11 @@ await User.find({
 ### Using the `sql` function to create a `LIKE` `WHERE` condition 
 ```js
 import { sql } from "masquerade-orm"
-
+const likeParam = '%@gmail.com%'
 await User.find({
     where: {
         // registered using a Gmail email
-        email: sql`LIKE '%@gmail.com%'`
+        email: sql`LIKE ${likeParam}`
     }
 })
 ```
@@ -176,7 +176,7 @@ type OrderOverview = {
 
 class Order extends Entity {
   // other properties
-  metadata: UserMetadata
+  overview: OrderOverview
   // other properties + constructor
 }
 
@@ -267,20 +267,137 @@ Check nested field | `json_extract(#, '$.preferences.theme') = 'dark'` | `#->'pr
 </strong>
 
 
+## The `limit` and `offset` fields
 
-## The `orderBy` Field:
+Before diving into the `orderBy` field, let’s quickly review the simple `limit` and `offset` fields:
 
-The `orderBy` field sorts the **base entity instances in the returned array**. Similar to how `WHERE` arguments do not filter relational data but only determine which base instances are returned, `orderBy` conditions affect **only the order of the base entity instances**.
+- **`limit`** restricts the number of results returned to **N**, where N is the integer value of `limit`.  
+- **`offset`** skips the first **N** results, where N is the integer value of `offset`.
 
-The `orderBy` argument does not support only simple `ASCENDING` and `DESCENDING` ordering corresponding respectively to `ASC` and `DESC`, but also supports the usage of **aggregate functions**.
+Together, these fields allow for the implementation of pagination logic.
 
+
+## The `orderBy` Field
+
+The `orderBy` field determines how the **base entity instances in the returned array** are sorted. Similar to how `WHERE` arguments only determine which base instances are returned (without filtering relational data), `orderBy` conditions **affect only the order of the base entity instances**. In other words, `orderBy` will **NOT** sort relational data. 
+
+The `orderBy` argument supports more than simple `ASC` (ascending) or `DESC` (descending) ordering; it can also use **aggregate functions** for sorting, which can take relational data and parameter values as arguments.
+
+- **Top 10 largest donations with newest users first**
 ```js
-// assuming the class Product has a relational property 'reviews' of type Review[], with Review having a property of 'rating' that is of type number.
-$aggregate: true, // since AVG() is an aggregate function, this must be set to true
-$templateOrderBy: (product) => sql`AVG(${product.reviews.rating})`,
-where: {price: sql`< ${maxPrice}`}
+// Breaking tied amounts first by newest user, then by newest donation.
+const topTenDonations = await Donations.find({
+    orderBy: {
+        amount: 'DESC',
+        user: {
+            createdAt: 'DESC',
+        },
+        createdAt: 'DESC',
+    },
+    limit: 10
+})
 ```
 
+- **Top 10 largest donations from long term users**
+```js
+// Fetch top 10 largest donations from users older than 3 years, breaking ties first by oldest user, then by newest donation.
+
+const threeYearsAgo = new Date();
+threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3)
+
+const topTenDonationsOldUsers = await Donations.find({
+    orderBy: {
+        amount: 'DESC',
+        user: {
+            createdAt: 'ASC',
+        },
+        createdAt: 'DESC',
+    },
+    limit: 10,
+    where: {
+        user: {
+            createdAt: sql`<= ${threeYearsAgo}` 
+        }
+    }
+})
+```
+
+- **Find products under a max price ordered by average rating:**
+
+```js
+// Assuming the class Product has a relational property 'reviews' of type Review[], with Review having a property of 'rating' that is of type number.
+
+const maxPrice = 30
+const products = await Product.find({
+    orderBy: {
+        $templateOrderBy: (product) => sql`AVG(${product.reviews.rating})`,
+        $aggregate: true, // since AVG() is an aggregate function, this must be set to true
+    },
+    where: { price: sql`<= ${maxPrice}` }
+})
+```
+
+- **Find pet shops near a user with weighted ranking and paginated results:**
+```js
+const userLocation = {
+    latitude: 40.7128,
+    longitude: -74.0060,
+    city: `New York City`
+}
+
+// Weights for the ranking formula: how much each factor contributes to the overall score
+const weights = {
+    rating: 0.5,    // 50% weight for the shop's rating
+    distance: 0.3,  // 30% weight for proximity (closer is better)
+    price: 0.2      // 20% weight for affordability (lower priceLevel is better)
+}
+
+// Weighted score template for ORDER BY
+// The formula calculates a single numeric score for each shop by combining three factors:
+// 1. The shop's rating normalized to a 0–1 scale, multiplied by the rating weight.
+// 2. The distance between the shop and the user's coordinates (calculated using the Haversine formula),
+//    inverted so that closer shops produce a higher contribution to the score, multiplied by the distance weight.
+// 3. The shop's price level normalized to a 0–1 scale (lower is better), multiplied by the price weight.
+const orderByFunc = (shop) => sql`
+  ${weights.rating} * (${shop.rating} / 5.0)
+  +
+  ${weights.distance} * (
+    1 / (
+      1 +
+      6371 * acos(
+        cos(radians(${userLocation.latitude})) *
+        cos(radians(${shop.latitude})) *
+        cos(radians(${shop.longitude}) - radians(${userLocation.longitude})) +
+        sin(radians(${userLocation.latitude})) *
+        sin(radians(${shop.latitude}))
+      )
+    )
+  )
+  +
+  ${weights.price} * (1 - (${shop.priceLevel} / 4.0))
+  `
+
+const page = 2
+const itemsInPage, limit = 20
+const offset = (page - 1) * itemsInPage
+
+const rankedPetShops = await Shop.find({
+    where: {
+        type: 'petshop',
+        city: userLocation.city
+    },
+    orderBy: {
+        $templateOrderBy: orderByFunc
+    },
+    limit,
+    offset
+})
+```
+
+### Resources on Aggregate Functions 
+
+- [PostgreSQL](https://www.postgresql.org/docs/current/functions-aggregate.html)
+- [SQLite](https://sqlite.org/lang_aggfunc.html) 
 
 <br>
 <div align="center">

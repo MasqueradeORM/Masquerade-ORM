@@ -145,23 +145,21 @@ function andOr2Statement(whereValue, whereValueType, columnIdentity, whereObj) {
     let paramIndex
     whereValue.forEach((el, index) => {
         paramIndex = whereObj.params.length + 1
-        if (index !== 0) queryStr += whereValueType === "AND" ? ` AND` : ` OR`
+        if (index !== 0) queryStr += whereValueType === "AND" ? ` AND ` : ` OR `
         const elType = getType(el)
 
         if (elType === "AND" || elType === "OR") {
             queryStr += andOr2Statement(el, elType, columnIdentity, whereObj)
         }
         else if (elType === "SqlWhereObj") {
-            queryStr += ` ` + sqlWhereObj2Statement(el, columnIdentity, whereObj)
+            queryStr += sqlWhereObj2Statement(el, columnIdentity, whereObj)
         }
         else {
-            queryStr += ` ${columnIdentity} = $${paramIndex}`
+            queryStr += `${columnIdentity} = $${paramIndex}`
             whereObj.params.push(el)
         }
     })
-    queryStr = queryStr.trim().replace("  ", " ")
-    queryStr = `(` + queryStr + `)`
-    return queryStr
+    return `(${queryStr.trim()})`
 }
 
 function sqlWhereObj2Statement(sqlWhereObj, columnIdentity, whereObj) {
@@ -198,8 +196,7 @@ function nonRelationalWhereFunction2Statement(func, columnIdentity, whereObj) {
             }
         }
     }
-    queryStr = `(` + queryStr.trim() + `)`
-    return queryStr
+    return `(${queryStr.trim()})`
 }
 
 

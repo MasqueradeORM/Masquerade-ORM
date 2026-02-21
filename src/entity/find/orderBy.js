@@ -15,9 +15,6 @@ export function mergeOrderByScope(scopeProxy, orderByArg, argOrderIndex = { inde
         }
         else if (key === '$templateOrderBy') {
             scopeProxy = mergeTemplateScope(scopeProxy, val, "templateOrderBy")
-            // const orderByDict = scopeProxy.orderBy_ ??= {}
-            // orderByDict.$template = [val, argOrderIndex.index++]
-            // delete scopeProxy.templateOrderBy_
             scopeProxy.templateOrderBy_ = [val, argOrderIndex.index++]
             continue
         }
@@ -78,43 +75,8 @@ export function orderByValues2Statements(aliasObj, orderByVals, statementsObj) {
                     //else throw new Error(`\nError in 'sortBy' field of 'find' function's argument: function provided to property '${propertyName}' is invalid.`)
                 }
             }
-            statements[index] = queryStr.trim()
+            statements[index] = `${queryStr.trim()}` 
         }
         else statements[index] = `${aliasName} ${val}`
     }
-}
-
-// export function orderByValues2Statements(aliasObj, statementsObj = { statements: {}, params: [] }) {
-//     const { orderBy } = aliasObj
-//     if (orderBy) {
-//         const { statements, params } = statementsObj
-//         for (const [propertyName, [val, index]] of Object.entries(orderBy)) {
-//             if (propertyName === '$template') {
-//                 const statementObj = statementsObj[index] = { statements: [], params: [] }
-//                 templateFuncs2Statements(aliasObj, val, statementObj)
-//                 continue
-//             }
-//             const aliasName = Alias.createColumnId(aliasObj, propertyName)
-//             if (typeof val === 'function') {
-//                 let queryStr = ``
-//                 const sqlOutput = val(new Alias(aliasName))
-//                 while (sqlOutput.params.length + sqlOutput.strings.length > 0) {
-//                     sqlOutput.strings.length && (queryStr += sqlOutput.strings.shift())
-//                     if (sqlOutput.params.length) {
-//                         const param = sqlOutput.params.shift()
-//                         if (param instanceof Alias) queryStr += param[aliasSymb]
-//                         else throw new Error(`\nError in 'sortBy' field of 'find' function's argument: function provided to property '${propertyName}' is invalid.`)
-//                     }
-//                 }
-//                 statementsObj[index] = queryStr.trim()
-//             }
-//             else statementsObj[index] = `${aliasName} ${val}`
-//         }
-//     }
-// }
-
-
-export function formatOutput(orderByOutput) {
-    console.log(true)
-
 }

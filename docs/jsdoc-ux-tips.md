@@ -7,7 +7,7 @@ This guide will instruct you on how to adjust your VS Code settings to vastly im
 Here is how your code will look like after applying the settings:
 
  
-![img](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/jsdoc-class-example.png)
+![img](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/jsdoc-class-example.png)
 
 
 
@@ -180,7 +180,7 @@ Add the following lines to your `jsconfig.json` (or `tsconfig.json`) file:
 /**@typedef {import('./path/to/file').YourImportedType} YourImportedTypeAlias*/
 ```
 
-![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/import-typedef.gif)
+![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/import-typedef.gif)
 
 
 ### Typing Variables
@@ -189,7 +189,7 @@ Add the following lines to your `jsconfig.json` (or `tsconfig.json`) file:
 /**@type {string}*/ someString = '123'
 /**@type {number}*/ someNumber = 567
 ```
-![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/type-declarations.gif)
+![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/type-declarations.gif)
 
 
 ### `Object` Type Deinition Template
@@ -202,7 +202,7 @@ Add the following lines to your `jsconfig.json` (or `tsconfig.json`) file:
 */
 ```
 
-![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/typedef.gif)
+![gif](https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/typedef.gif)
 
 ### Defining Classes
 

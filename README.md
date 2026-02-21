@@ -2,15 +2,15 @@
 
   <a href="#">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/DARK-THEME-LOGO-transperent-bg.png">
-        <source  media="(prefers-color-scheme: light)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/LIGHT-THEME-LOGO-transperent-bg.png">
-        <img style="max-width: 33%; height: auto;" alt="MasqueradeORM Logo" src="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.1.0/LIGHT-THEME-LOGO-transperent-bg.png">
+        <source media="(prefers-color-scheme: dark)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/DARK-THEME-LOGO-transperent-bg.png">
+        <source  media="(prefers-color-scheme: light)" srcset="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/LIGHT-THEME-LOGO-transperent-bg.png">
+        <img style="max-width: 33%; height: auto;" alt="MasqueradeORM Logo" src="https://github.com/MasqueradeORM/MasqueradeORM/releases/download/0.9/LIGHT-THEME-LOGO-transperent-bg.png">
     </picture>
   </a>
   <br><br>
   <a href="">
       <br><br>
-    <img src="https://img.shields.io/badge/License-MIT-teal.svg" alt="MIT License"/>
+    <img src="https://img.shields.io/badge/License-Apache_2.0-teal.svg" alt="Apache License 2.0"/>
   </a>
   <br><br>
 </div>
@@ -27,7 +27,7 @@ Your schema and tables are generated automatically from a single source of truth
 
 MasqueradeORM currently supports the following SQL clients: 
 - **SQLite** 
-- **Postgresql**
+- **PostgreSQL**
 
 
 # Installation
@@ -44,10 +44,11 @@ npm install masquerade-orm
 - **Optimized querying** - Fewer queries through intelligent transaction grouping without sacrificing data integrity.
 - **Expressive template-literal WHERE clauses** - Write complex, readable conditions such as LIKE, ≥, nested property access, array element matching (and more) by using IntelliSense-enabled tagged template literals. Any SQL WHERE logic can be expressed through this API.
 - **Cross-column conditions** - Easily write WHERE clauses that compare two columns (within the same table or across joined tables).
+- **Advanced sorting with aggregate and computed ordering** - Go beyond ASC/DESC with multi-column tie-breaking, relational aggregates, and fully custom template-literal ranking expressions.
 - **Powerful relation capabilities** - Full support for eager & lazy loading, unidirectional / bidirectional / self-referencing relationships, and modifying associations even when they are not loaded.
 - **SQL injection protection** - All queries are parameterized.
 - **Minimal data transfer size** - Improves performance in client-server setups (not applicable for embedded databases like SQLite).
-- **Soft + hard deletion support**
+- **Soft deletion and hard deletion support**
 - **Abstract and non-abstract inheritance** - Enables the use of abstract classes, even in JavaScript.
 - **Strong typing even in JavaScript** - Powered by JSDoc, no compile step required.
 - **Smart schema cleanup** - Automatically detect and easily remove unused tables and columns, reducing database bloat and improving performance.
@@ -108,25 +109,29 @@ const newUser = new User('JohnDoe57', 'johnDoe@yahoo.com', 'passwordHash')
 // newUser will be saved to the database automatically, no explicit save call is required.
 
 // Finding a user by email
-const user = await findUserByEmail('johnDoe@yahoo.com') // user's friendList is a promise
+const user = await findUserByEmail('johnDoe@yahoo.com') // The user's 'friendList' is a LazyPromise (not yet loaded - will load once awaited)
 console.log(user.username === 'JohnDoe57') // true
 ```
 
 ### Mutating Data
 All mutations are persisted implicitly and automatically, meaning that simply changing a value is enough for it to be reflected in the database.
 
-**Mutating non-Relational Properties**
+**Mutating non-Relational Values**
 ```ts
 user.settings.theme = 'dark' 
 ```
 
-**Mutating Relational Properties**
+**Mutating Relational Values**
 ```ts
-// lazy-load friendList
-await user.friendList 
-// add a new relation
+// ** Assuming the user's 'friendList' is still a LazyPromise **
+
+// add a new relation (without having to load 'friendList')
 user.friendList.push(new User('JaneDoe33', 'janeDoe@yahoo.com', 'passwordHash2')) 
-// remove a relation
+
+// load 'friendList'
+await user.friendList 
+
+// remove a relation (requires 'friendList' to be loaded)
 user.friendList.pop() 
 ```
 

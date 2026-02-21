@@ -158,9 +158,7 @@ function andOr2Statement(whereValue, whereValueType, columnIdentity, whereOutput
             whereOutputDict.params.push(el)
         }
     })
-    queryStr = queryStr.trim() //.replace("  ", " ")
-    queryStr = `(` + queryStr + `)`
-    return queryStr
+    return `(${queryStr.trim()})`
 }
 
 function sqlWhereObj2Statement(sqlWhereObj, columnIdentity, whereOutputDict) {
@@ -196,8 +194,7 @@ function nonRelationalWhereFunction2Statement(func, columnIdentity, whereOutputD
             }
         }
     }
-    queryStr = `(` + queryStr.trim() + `)`
-    return queryStr
+    return `(${queryStr.trim()})`
 }
 
 
