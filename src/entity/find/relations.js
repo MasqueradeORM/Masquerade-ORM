@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { removeRelationFromUnusedRelations } from "./find.js"
 import { classWiki2ScopeProxy } from "./scopeProxies.js"
 

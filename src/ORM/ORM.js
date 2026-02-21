@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { addChildrenToClasses, alterTables, compareAgainstDb, createBranches, createClassMap, createJunctionColumnContext, createTableObject, entities2NodeArr, formatForCreation, generateTableCreationQueryObject, getInitIdValues, handleSpecialSettingId, nodeArr2ClassDict, returnEntityClassObj, sendTableCreationQueries } from "./bootOrm.js"
 export { Entity } from "../entity/entity.js"
 import { OrmStore } from "../misc/ormStore.js"

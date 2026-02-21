@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 export declare class DbManager {
     /**
      * Can be given an entity table name to delete unused columns in,

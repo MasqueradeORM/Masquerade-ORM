@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { Entity } from '../index.js'
 import { jsonGenerator } from './miscFunctions.js'
 /**@typedef {import('../index.js').integer} integer */

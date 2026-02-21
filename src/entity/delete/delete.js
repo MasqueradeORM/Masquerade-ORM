@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 export function throwDeletionErr(className, id4Deletion) {
     throw new Error(`Unable to delete ${className} with id of ${id4Deletion} due to potential relational dependencies. Use the async method 'getDependents' to get relational dependency data and decouple it from the deleted instance for the deletion to work.`)
 }

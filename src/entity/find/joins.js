@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { nonSnake2Snake } from "../../misc/miscFunctions.js"
 
 export function parentJoin(parentObj, parentAlias, childObj) {

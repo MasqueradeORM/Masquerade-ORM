@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 
 import { createSourceFile, SyntaxKind, ScriptKind, ScriptTarget } from "typescript"
 import { js2SqlTyping, nonSnake2Snake, snake2Pascal, array2String, coloredBackgroundConsoleLog } from "../misc/miscFunctions.js"

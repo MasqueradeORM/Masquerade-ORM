@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import type { UUID } from "crypto"
 import { Entity } from "../entity/entity"
 import { Alias, AND, OR } from "../entity/find/findArgFuncs"

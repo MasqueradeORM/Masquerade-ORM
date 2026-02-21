@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { nonSnake2Snake } from "../../misc/miscFunctions.js"
 import { Alias, aliasSymb } from "../../misc/classes.js"
 import { classWiki2ScopeObj, deproxifyScopeProxy, findPropOnScopeProxy } from "./scopeProxies.js"

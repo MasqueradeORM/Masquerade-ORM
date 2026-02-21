@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { ORM } from "../index.js"
 import { DatabaseSync } from 'node:sqlite'
 import { Pool } from 'pg'

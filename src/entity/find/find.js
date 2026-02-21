@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 
 import { coloredBackgroundConsoleLog, getType, jsValue2SqliteValue } from "../../misc/miscFunctions.js"
 import { rowObj2InstanceProxy } from "../../proxies/instanceProxy.js"

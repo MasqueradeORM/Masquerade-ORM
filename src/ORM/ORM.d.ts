@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import type { DbPrimaryKey, OrmConfigObj } from '../misc/types.js'
 import { Entity } from '../entity/entity.js'
 export declare class ORM {

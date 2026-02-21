@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 /**@typedef {import('./types').PrimitivesNoNull} PrimitivesNoNull*/
 
 import { nonSnake2Snake } from './miscFunctions.js'

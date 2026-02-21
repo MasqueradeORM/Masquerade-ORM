@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { familyAgeGenerator, familyNameGenerator } from "./miscFunctions.js"
 import { Person, House } from "./testing-classes.js"
 

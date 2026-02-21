@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { coloredBackgroundConsoleLog, nonSnake2Snake } from "../../misc/miscFunctions.js"
 import { successfullSaveOperation } from "../save.js"
 

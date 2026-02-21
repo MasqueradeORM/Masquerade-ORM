@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { store } from "./store.js"
 import { SyntaxKind } from "typescript"
 import ts from "typescript"

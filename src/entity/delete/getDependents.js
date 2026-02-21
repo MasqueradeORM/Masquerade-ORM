@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { OrmStore } from "../../misc/ormStore.js"
 import { DependentsFinalizationRegistry, ORM } from "../../ORM/ORM.js"
 import { executeFindQuery, parseFindWiki } from "../find/find.js"

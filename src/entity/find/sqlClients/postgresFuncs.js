@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { nonSnake2Snake, postgres2JsTyping, snake2Pascal } from "../../../misc/miscFunctions.js"
 import { rowObj2InstanceProxy } from "../../../proxies/instanceProxy.js"
 import { createNonRelationalArrayProxy } from "../../../proxies/nonRelationalArrayProxy.js"

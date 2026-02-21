@@ -1,3 +1,6 @@
+// Copyright 2026 B.G (github.com/MasqueradeORM)
+// SPDX-License-Identifier: Apache-2.0
+
 import { ChangeLogger } from "../changeLogger/changeLogger.js"
 import { getValidTypedArray } from "../misc/miscFunctions.js"
 import { OrmStore } from "../misc/ormStore.js"
