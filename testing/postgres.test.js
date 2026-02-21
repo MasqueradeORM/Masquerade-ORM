@@ -148,7 +148,7 @@ test('test 1 - find basics and change logging', async (t) => {
 })
 
 
-test('test 2 - promises and instance logging', async (t) => {
+await test('test 2 - promises and instance logging', async (t) => {
 
   await t.test('overwriting promises without loading', async (t) => {
     let firstRelationalTest = (await House.find({ where: { id: 1 } }))[0]
@@ -165,17 +165,17 @@ test('test 2 - promises and instance logging', async (t) => {
       })
     )[0]
 
-    t.test('1-to-1 correctly set value after promise-2-value assignment', () => {
+    await t.test('1-to-1 correctly set value after promise-2-value assignment', async () => {
       assert.strictEqual(firstRelationalTest?.owner?.fullName, 'Mr Clean')
     })
 
-    t.test('1-to-many relational array sorting', () => {
+    await t.test('1-to-many relational array sorting', async () => {
       firstRelationalTest.tenants?.sort((a, b) => b.age - a.age)
       const sortCheck = firstRelationalTest.owner && firstRelationalTest.tenants?.includes(firstRelationalTest.owner)
       assert.strictEqual(sortCheck, true)
     })
 
-    t.test('1-to-many correctly set value after promise-2-value assignment', () => {
+    await t.test('1-to-many correctly set value after promise-2-value assignment', async () => {
       assert.strictEqual(firstRelationalTest?.tenants?.length, 2)
       assert.strictEqual(firstRelationalTest.tenants[0].fullName, 'Mr Clean')
       assert.strictEqual(firstRelationalTest.tenants[1].fullName, 'Mrs Clean')
