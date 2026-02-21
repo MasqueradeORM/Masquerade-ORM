@@ -133,7 +133,7 @@ function whereValue2Statement(whereValue, propertyName, aliasObj, whereOutputDic
     else {
         //primitive values
         if (Array.isArray(whereValue)) whereValue = whereValue.filter(() => true)
-        let paramIndex = whereOutputDict.params.length + 1
+        const paramIndex = whereOutputDict.params.length + 1
         queryStr += `${columnIdentity} = $${paramIndex}`
         whereOutputDict.params.push(whereValue)
     }
@@ -202,9 +202,8 @@ function nonRelationalWhereFunction2Statement(func, columnIdentity, whereOutputD
 
 
 export function mergeWhereScope(scopeProxy, whereObj) {
-    const entries = Object.entries(whereObj)
     const classWikiDict = OrmStore.store.classWikiDict
-    for (const [key, whereVal] of entries) {
+    for (const [key, whereVal] of Object.entries(whereObj)) {
 
         if (key === "$templateWhere") {
             scopeProxy = mergeTemplateScope(scopeProxy, whereVal, "templateWhere")
@@ -213,11 +212,11 @@ export function mergeWhereScope(scopeProxy, whereObj) {
 
         const [value, classProxy4Key, keyCategory] = scopeProxy[key]
         if (keyCategory === "columns_") {
+            if (whereVal === null) continue
             classProxy4Key.where_ ??= {}
             classProxy4Key.where_[key] = whereVal
         }
         else if (keyCategory === "uncalledJunctions_" || keyCategory === "junctions_") {
-
             const whereValType = getType(whereVal)
             if (whereValType !== "function" && whereValType !== "object")
                 throw new Error(

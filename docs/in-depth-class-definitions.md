@@ -165,7 +165,7 @@ class User extends Entity {
 ```
 
 ### How is an abstract class mapped to the database?  
-Abstract classes do not get a table on the database. Instead, the non-abstract descendant classes of the abstract class will inherit all its properties/columns.   
+`Abstract classes` do not get a table on the database. Instead, the non-abstract descendant classes of the abstract class will inherit all its properties/columns.   
 For example, `abstract ClassA` has two children, `abstract ClassB` and `non-abstract ClassC`, with *ClassB* having a `non-abstract` child `ClassD`.
 this means *ClassD's* table will inherit columns from both *ClassA* and *ClassB*, while *ClassC's* table will inherit columns from *ClassA*.
 
@@ -199,10 +199,13 @@ EntityExtendingClass[] | undefined // main type 'EntityExtendingClass'
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <a href="https://github.com/MasqueradeORM">
+    B.G (github.com/MasqueradeORM) 
+    </a>    
     <br>
     Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
     Apache License 2.0
     </a> 
   </strong>
 </div>
+

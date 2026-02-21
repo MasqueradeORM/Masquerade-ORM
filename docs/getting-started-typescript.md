@@ -23,6 +23,8 @@ propertyName?: string
 import { Unique } from 'masquerade-orm'
 propertyName: string | Unique
 ```   
+Do not use `string | undefined` as a property type, as `null` will cause unintended behavior as elaborated on [here](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/find.md#understanding-null-vs-undefined-values-in-where-clauses
+), and will **NOT** make the column nullable.
 
 ## 4) Relational Properties
 Assuming we have the following classes extending Entity: `User`, `Chat` and `Message`.   
@@ -153,7 +155,9 @@ await ORM.typescriptBoot(ormConfig, classes, moreClasses, someClass)
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <a href="https://github.com/MasqueradeORM">
+    B.G (github.com/MasqueradeORM) 
+    </a>    
     <br>
     Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
     Apache License 2.0

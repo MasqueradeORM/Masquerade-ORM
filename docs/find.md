@@ -29,7 +29,7 @@ They are either loaded or not. The ORM never displays partial relational data.
 
 ```js
 // assume that relationalProp is a property of type SomeClass or SomeClass[]
-await ExampleClass.find(
+const foundExamples = await ExampleClass.find(
     {
         relations: {relationalProp: true},
         where: {
@@ -39,22 +39,28 @@ await ExampleClass.find(
         }
     }
 )
+
+const exampleClassId57 = await ExampleClass.find({ where: { id: 57 } })
 ```
 
 The example above translates to:   
-**“Fetch all instances of ExampleClass whose relationalProp contains a SomeClass instance with id = 57.”**
+**“Fetch all instances of ExampleClass whose relationalProp contains exampleClassId57”**
 
-In other words, the condition matches when either of the following is true:  
+In other words, the below examples will always console log 'true'.  
 
 ```js
-// 1-to-1 relationship case
-exampleClassInstance.relationalProp === someClassId57 
-```    
-or   
+// 1-to-1 relation case
+foundExamples.forEach(example =>
+  console.log(example.relationalProp === exampleClassId57)
+)
+```
+
 ```js
-// 1-to-many relationship case
-exampleClassInstance.relationalProp.includes(someClassId57)
-```    
+// 1-to-many relation case
+foundExamples.forEach(example =>
+  console.log(example.relationalProp.includes(exampleClassId57))
+)
+```
 
 ### Lazy Loading
 
@@ -266,6 +272,32 @@ Array length <br>(example uses len = 2) | **'metadata' find** <br> `json_array_l
 Check nested field | `json_extract(#, '$.preferences.theme') = 'dark'` | `#->'preferences'->>'theme' = 'dark'` |
 </strong>
 
+## Understanding `null` vs `undefined` values in `where` clauses
+
+When constructing queries, null and undefined behave very differently in `where` conditions (both in regular `where` or `templateWhere`):
+
+<p style="text-align:center">
+<strong>null === omit condition from query</strong><br>
+<strong>undefined === SQL NULL</strong>
+</p>
+
+Passing `null` in a `where` clause omits the condition entirely. This is useful for conditionally adding filters. While `undefined` is the same as saying “where this column value is NULL“.
+
+```js
+async function findUserById(lookupId, allowDeleted = false) {
+    const resultArray = await User.find({
+        where: { 
+            id: lookupId, 
+            deletedAt: allowDeleted ? null : undefined
+            }
+    })
+    return resultArray[0]
+}
+```
+Here, when `allowDeleted === true`, the `deletedAt` condition is ignored and the query returns a user regardless of `deletedAt` value and filters only by `id` value.
+
+When `allowDeleted === false`, the result will only include a user who has a `deletedAt` value of NULL on the database.
+The ORM maps SQL NULL values back to `undefined` values in your application code.
 
 ## The `limit` and `offset` fields
 
@@ -403,7 +435,9 @@ const rankedPetShops = await Shop.find({
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <a href="https://github.com/MasqueradeORM">
+    B.G (github.com/MasqueradeORM) 
+    </a>    
     <br>
     Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
     Apache License 2.0

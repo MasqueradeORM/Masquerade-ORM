@@ -47,7 +47,9 @@ async function shutdown() {
 <div align="center">
   <strong>
     © 2026 
-    <a href="https://github.com/MasqueradeORM">B.G (github.com/MasqueradeORM) </a>    
+    <a href="https://github.com/MasqueradeORM">
+    B.G (github.com/MasqueradeORM) 
+    </a>    
     <br>
     Released under the <a href="https://github.com/MasqueradeORM/MasqueradeORM/blob/master/LICENSE">
     Apache License 2.0

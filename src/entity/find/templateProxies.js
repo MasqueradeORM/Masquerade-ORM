@@ -70,7 +70,10 @@ export function createFullAndFlatAliasObj(scopeObj, fullFlatAliasObj = {}) {
 }
 
 export function mergeTemplateScope(proxyMap, templateFunc, /**@type {'templateWhere' | 'templateOrderBy'}*/ templateType) {
-    if (typeof templateFunc !== "function") throw new Error(`'${templateType}' expects a function.`)
+    if (typeof templateFunc !== "function") {
+        if (templateFunc !== null) throw new Error(`'${templateType}' expects a function.`)
+        return
+    }
     let scopeObj = deproxifyScopeProxy(proxyMap)
     const classWiki = OrmStore.store.classWikiDict[scopeObj.className_]
     const templateProxy = createTemplateProxy(scopeObj, classWiki)
