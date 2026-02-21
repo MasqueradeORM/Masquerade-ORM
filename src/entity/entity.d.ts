@@ -18,7 +18,7 @@ export declare class Entity {
   /**
   * Hard deletes the instance from the database. May require a pre-deletion step - the 'getDependents' method.
   */
-  delete(): Promise<void>
+  delete(): void
 
   /**
   * A pre-deletion step that is required in certain cases.

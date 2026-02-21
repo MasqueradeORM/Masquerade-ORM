@@ -113,7 +113,7 @@ export class Entity {
   /**
   * Hard deletes the instance from the database. May require a pre-deletion step - the 'getDependents' method.
   */
-  async delete() {
+  delete() {
     const { dbConnection, classWikiDict, dependentsMapsObj, dbChangesObj } = OrmStore.store
     if (!dbConnection) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
 

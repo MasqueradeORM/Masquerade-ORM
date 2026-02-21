@@ -213,15 +213,15 @@ test('test 3 - deletion', async (t) => {
     let children = [...father?.children]
     const firstChild = children.shift()
 
-    await t.test('deletion events - relational arrays', async () => {
-        await firstChild.delete()
+    t.test('deletion events - relational arrays', () => {
+        firstChild.delete()
         //@ts-ignore
         assert.strictEqual(childrenCount - father?.children.length === 1, true)
         assert.strictEqual(father?.children.includes(firstChild), false)
     })
 
     await t.test('deletion events - 1-to-1 relation', async () => {
-        await father?.delete()
+        father?.delete()
         await House.find({})
         await initORM(configObj, classes)
 

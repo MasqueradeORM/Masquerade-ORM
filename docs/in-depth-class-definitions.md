@@ -142,7 +142,7 @@ class ClassB extends ClassA {
     // properties and constructor
 }
 ```
-In the example above, `idType` has no effect because `ClassB` does not extend `Entity`. If `static ormClassSettings_ = {idType: 'INT'}` was instead on `ClassA`, the id type of `ClassA` and all of its descendants would have an id type of `integer`.
+In the example above, `idType` has no effect because `ClassB` does not extend `Entity`. If `static ormClassSettings_ = {idType: 'INT'}` was instead on `ClassA`, `ClassA` and  its descendants would have an id-type of `integer`.
 
 At the moment, this is the only class setting supported, but it may evolve in the future.
 

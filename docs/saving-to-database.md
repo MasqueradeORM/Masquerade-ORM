@@ -15,7 +15,7 @@ yourInstance.booleanValue = !yourInstance.booleanValue
 yourInstance.exampleRelation = new ExampleRelation()
 ```
 
-**How does this work under the hood?**  
+### How does this work under the hood?  
 
 When you mutate a class instance, changing a value or adding/removing a relation, the ORM doesn’t write to the database immediately.   
 Instead, it tracks those changes and batches them together to optimize the save operation.
@@ -25,6 +25,23 @@ Whenever the server is about to perform an async operation (for example, when ex
 
 Below is the order of operations:   
 **create/change data → hit an async boundary → ORM saves → safe to read**
+
+### Shutting off server
+
+When shutting off the server, to guarantee that all instance/row mutations are saved safely, perform a READ operation:
+
+```js
+async function shutdown() {
+  console.log('Shutting down gracefully…')
+
+  await SomeClass.find({where: updatedAt: new Date()})
+
+  server.close(() => {
+    console.log('HTTP server closed')
+    process.exit(0)
+  })
+}
+```
 
 <br>
 <div align="center">
