@@ -51,19 +51,23 @@ npm install masquerade-orm
 - **Effortless setup** - No ORM-specific structures; just use your classes.
 - **Zero schema planning** - Tables and schema are generated automatically.
 - **Powerful IntelliSense** - Confidently build complex queries with real-time IDE guidance and warnings when something’s wrong.
-- **Minimal memory usage** - One class instance per database row, minimizing memory usage and avoiding duplicates through smart state management.
-- **Optimized querying** - Fewer queries through intelligent transaction grouping without sacrificing data integrity.
-- **Expressive template-literal WHERE clauses** - Write complex, readable conditions such as LIKE, ≥, nested property access, array element matching (and more) by using IntelliSense-enabled tagged template literals. Any SQL WHERE logic can be expressed through this API.
-- **Cross-column conditions** - Easily write WHERE clauses that compare two columns (within the same table or across joined tables).
-- **Advanced sorting with aggregate and computed ordering** - Go beyond ASC/DESC with multi-column tie-breaking, relational aggregates, and fully custom template-literal ranking expressions.
+- **Minimal memory usage** - Automatically prevents duplicate entity instances by maintaining a single in-memory representation per database row using an *Entity Map*.
+- **Batched implicit writes** - Minimizes database round-trips by batching operations into optimized transactions while preserving consistency and state integrity.
+- **Cross-column & cross-table conditions made effortless** - Use relational and non-relational data in *WHERE* and *ORDER BY* clauses with clean, IntelliSense-supported syntax that automatically handles the all the necessary joins for you.
+Focus on your business logic while the ORM manages the tedious work.
+- **Expressive template-literal *WHERE* clauses** - Write complex, readable conditions such as *LIKE*, ≥, *nested property access*, *array element matching* and more, by using IntelliSense-guided tagged template literals. Any valid SQL *WHERE* logic is possible, with safe parameter interpolation and full relational nesting support.
+
+- **Advanced, flexible sorting with aggregates, relations & custom expressions** - 
+Go far beyond basic *ASC*/*DESC*: support multi-column tie-breakers, *ORDER BY* with aggregates (*COUNT*, *AVG*, etc.), and fully custom computed expressions via template literals.
+Perfect for leaderboards, recommendations, or relevance scoring: all IntelliSense-friendly.
 - **Powerful relation capabilities** - Full support for eager & lazy loading, unidirectional / bidirectional / self-referencing relationships, and modifying associations even when they are not loaded.
 - **SQL injection protection** - All queries are parameterized.
 - **Minimal data transfer size** - Improves performance in client-server setups (not applicable for embedded databases like SQLite).
 - **Soft deletion and hard deletion support**
-- **Abstract and non-abstract inheritance** - Enables the use of abstract classes, even in JavaScript.
-- **Strong typing even in JavaScript** - Powered by JSDoc, no compile step required.
-- **Smart schema cleanup** - Automatically detect and easily remove unused tables and columns, reducing database bloat and improving performance.
-- **Lightweight** - Minimal dependencies.
+- **Abstract and non-abstract inheritance** - Enables the use of *abstract classes*, even in JavaScript.
+- **Strong typing even in JavaScript** - Powered by *JSDoc*, no compile step required.
+- **Smart runtime schema cleanup** - Identifies unused tables and columns at runtime and provides actionable cleanup through a built-in class with static methods, reducing database bloat and maintaining optimal performance.
+- **Lightweight** - Requires just two dependencies, keeping the library lean and easy to integrate.
 - **Combines the convenience of embedded SQLite with the strict typing of RDBMS**
 
 

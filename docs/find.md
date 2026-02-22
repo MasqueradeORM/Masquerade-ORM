@@ -22,16 +22,16 @@ The 6 optional fields are:
 
 ## The `relations` Field
 
-The `relations` field determines which relations are eagerly loaded from the database.
+The `relations` field determines which relations are `eagerly-loaded` from the database.
 
-A crucial detail to understand is that relations are never filtered.
-They are either loaded or not. The ORM never displays partial relational data.
+A crucial detail to understand is that relations are **never filtered - they are either loaded or not loaded.** The ORM **never produces partial relational-data states.**
 
 ```js
 // assume that relationalProp is a property of type SomeClass or SomeClass[]
+
 const foundExamples = await ExampleClass.find(
     {
-        relations: {relationalProp: true},
+        relations: {relationalProp: true}, // eager-load relationalProp data
         where: {
             relationalProp: {
                 id: 57
@@ -40,25 +40,25 @@ const foundExamples = await ExampleClass.find(
     }
 )
 
-const exampleClassId57 = await ExampleClass.find({ where: { id: 57 } })
+const someClassId57 = await SomeClass.find({ where: { id: 57 } })
 ```
 
 The example above translates to:   
-**“Fetch all instances of ExampleClass whose relationalProp contains exampleClassId57”**
+**“`foundExamples` contains all the instances of ExampleClass whose relationalProp contains `someClassId57`”**
 
-In other words, the below examples will always console log 'true'.  
+In other words, the below examples will always log `true`:  
 
 ```js
 // 1-to-1 relation case
 foundExamples.forEach(example =>
-  console.log(example.relationalProp === exampleClassId57)
+  console.log(example.relationalProp === someClassId57)
 )
 ```
 
 ```js
 // 1-to-many relation case
 foundExamples.forEach(example =>
-  console.log(example.relationalProp.includes(exampleClassId57))
+  console.log(example.relationalProp.includes(someClassId57))
 )
 ```
 
@@ -116,15 +116,15 @@ await Angel.find({
 })
 ```
 
-### Using the `sql` function with explicit column identifiers   
-In the previous example, the `sql` function implicitly inserted a column identifier (`#`) on the left side of the SQL statement. 
+### Using the `sql` function with explicit column ID placeholders   
+In the previous example, the `sql` function implicitly inserted a column identifier placeholder (`#`) on the left side of the SQL statement. 
 ```js
 // these two statements are equivalent
 sql`> 12000`  
 sql`# > 12000` 
 ```
 
-In next example, `#` identifiers must be written explicitly because the SQL string uses `AND` conditional operators directly, rather than using the `AND()` helper function.
+In next example, `#` placeholders must be written explicitly because the SQL string uses `AND` conditional operators directly, rather than using the `AND()` helper function.
 
 ```js
 import { sql } from "masquerade-orm"
@@ -144,7 +144,7 @@ await User.find({
 // The ANDs are written directly inside the 'sql' string instead of 
 // having to rely on helper functions to achieve the same result. 
 // The 'sql' function gives you the ability to write powerful
-// 'where' conditions in an easy-to-read and easy-to-write manner.
+// 'WHERE' conditions in an easy-to-read and easy-to-write manner.
 ```
 
 <!-- **Equivalent Alternative Syntax:** 
@@ -262,7 +262,7 @@ const users2 = await User.find({where: {sessions: sql`_OPERATION_STRING_`}})
 // operation string from the table below
 ```
 
-<strong>**Operation String Table**
+**Operation String Table**
 
 | Operation    | SQLite      | PostgreSQL   |
 |-------------|---------------|------------|
@@ -270,18 +270,18 @@ Array length <br>(example uses len = 2) | **'metadata' find** <br> `json_array_l
 | Access index `i` of array   | **'metadata' find** <br>`json_extract(#, '$.roles[i]') = 'admin'`<br> **'sessions' find** <br>`json_extract(#, '$[i]') = 'SOME_SESSION_ID'` | **'metadata' find** <br>`#->'roles'->>i = 'admin''`<br> **'sessions' find** <br>`#->>i = 'admin'` |
 | Check if array contains a value | `json_extract(#, '$.roles') LIKE '%"admin"%'` | `#->'roles' @> '["admin"]'::jsonb` |
 Check nested field | `json_extract(#, '$.preferences.theme') = 'dark'` | `#->'preferences'->>'theme' = 'dark'` |
-</strong>
 
-## Understanding `null` vs `undefined` values in `where` clauses
 
-When constructing queries, null and undefined behave very differently in `where` conditions (both in regular `where` or `templateWhere`):
+## Understanding `null` vs `undefined` values in `WHERE` clauses
+
+When constructing queries, null and undefined behave very differently in `WHERE` conditions (both in regular `where` or `templateWhere`):
 
 <p style="text-align:center">
 <strong>null === omit condition from query</strong><br>
 <strong>undefined === SQL NULL</strong>
 </p>
 
-Passing `null` in a `where` clause omits the condition entirely. This is useful for conditionally adding filters. While `undefined` is the same as saying “where this column value is NULL“.
+Passing `null` in a `WHERE` clause omits the condition entirely. This is useful for conditionally adding filters. While `undefined` is the same as saying “where this column value is NULL“.
 
 ```js
 async function findUserById(lookupId, allowDeleted = false) {
