@@ -109,17 +109,17 @@ export class LazyPromise {
   push(...items) {
     const { instanceClass, instanceId, property, promiseType } = this.instanceContext
     const cleanedType = promiseType.endsWith('[]') ? promiseType.slice(0, -2) : promiseType
-    const addedIds = []
+    const addedIds = {}
     for (const item of items) {
       if (item.constructor.name !== cleanedType) throw new Error(`${item} is of type ${item.constructor.name} but must be of type ${cleanedType}.`)
-      addedIds.push(item.id)
+      addedIds[item.id] = true
     }
 
     const changesObj = OrmStore.store.dbChangesObj
     changesObj[instanceClass] ??= {}
     const instanceChangeObj = changesObj[instanceClass][instanceId] ??= {}
-    const relationsLogger = instanceChangeObj[property] ??= { added: [], removed: [] }
-    relationsLogger.added.push(...addedIds)
+    const relationsLogger = instanceChangeObj[property] ??= { add: {}, remove: {} }
+    Object.assign(relationsLogger.add, addedIds )
   }
 
 }

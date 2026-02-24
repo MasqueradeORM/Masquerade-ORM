@@ -4,225 +4,282 @@
 import { newEntityInstanceSymb } from "../misc/constants.js"
 import { coloredBackgroundConsoleLog, getPropertyClassification, jsValue2SqliteValue, nonSnake2Snake } from "../misc/miscFunctions.js"
 import { OrmStore } from "../misc/ormStore.js"
-import { ChangeLogger } from "./changeLogger.js"
 import { junctionTableRemovalPostgres } from "./sqlClients/postgres.js"
 import { junctionTableRemovalSqlite } from "./sqlClients/sqlite.js"
 
 const idTypeSymb = Symbol(`idType`)
 
-export function successfullSaveOperation() {
-  coloredBackgroundConsoleLog(`Save ran successfully.\n`, `success`)
-  OrmStore.clearDbChanges()
-  ChangeLogger.scheduledFlush = false
-  ChangeLogger.currentlySaving = false
+export function logSuccessfulSave() {
+   coloredBackgroundConsoleLog(`Save ran successfully.\n`, `success`)
+}
+
+export function relogFailedChanges(failedChanges) {
+   const { dbChangesObj } = OrmStore.store
+   for (const [key, data2Merge] of Object.entries(failedChanges)) {
+      if (dbChangesObj[key]) {
+         const obj2Merge2 = dbChangesObj[key]
+         if (key === '$deletedUnloadedRelations') {
+            for (const [tableName, { idType, params: ids }] of Object.entries(data2Merge)) {
+               const target = obj2Merge2[tableName]
+               if (target) target.params.push(...ids)
+               else obj2Merge2[tableName] = { idType, params: ids }
+            }
+         }
+         else if (key === '$deletedInstances') {
+            for (const [tableName, ids] of Object.entries(data2Merge)) {
+               const target = obj2Merge2[tableName]
+               if (target) target.push(...ids)
+               else obj2Merge2[tableName] = ids
+            }
+         }
+         else {
+            for (const [tableName, instanceLoggers] of Object.entries(data2Merge)) {
+               const classChanges = obj2Merge2[tableName]
+               if (classChanges) {
+                  const classWiki = OrmStore.getClassWiki(tableName)
+                  for (const [instanceId, changes2Merge] of Object.entries(instanceLoggers)) {
+                     if (classChanges[instanceId]) mergeFailedChanges(changes2Merge, classChanges[instanceId], classWiki)
+                     else classChanges[instanceId] = changes2Merge
+                  }
+               }
+               else obj2Merge2[tableName] = instanceLoggers
+            }
+         }
+      }
+      else dbChangesObj[key] = data2Merge
+   }
+}
+
+function mergeFailedChanges(changes2Merge, target4Merge, classWiki) {
+   for (const [prop, changes] of Object.entries(changes2Merge)) {
+      if (target4Merge[prop]) {
+         const [classification, ...rest] = getPropertyClassification(prop, classWiki)
+         if (classification === 'Primitive' || classification === 'ParentPrimitive') continue
+         else {
+            const { add: targetAdd, remove: targetRemove } = target4Merge[prop]
+            const { add, remove } = changes
+            for (const id in add) {
+               if (targetRemove[id]) delete targetRemove[id]
+               else targetAdd[id] = true
+            }
+
+            for (const id in remove) {
+               if (targetAdd[id]) delete targetAdd[id]
+               else targetRemove[id] = true
+            }
+         }
+      }
+      else target4Merge[prop] = changes
+   }
 }
 
 function expandBuffer(arr, lengthAdded) {
-  arr.length += lengthAdded
-  return arr
+   arr.length += lengthAdded
+   return arr
 }
 
-function passEntityColumnsToAncestorMaps(id, entityInstanceChangeObj, classWiki, cteMap, client) {
-  const isNewEntityInstance = entityInstanceChangeObj[newEntityInstanceSymb] ? true : false
-  cteMap.tables ??= {}
-  const baseClassCteMap = cteMap.tables[classWiki.className] ??= {}
-  baseClassCteMap[id] = { id }
-  let currentWiki = classWiki
-  while (currentWiki.parent) {
-    const classCteMap = cteMap.tables[currentWiki.parent.className] ??= {}
-    classCteMap[id] ??= { id }
-    classCteMap[id][newEntityInstanceSymb] = isNewEntityInstance
-    currentWiki = currentWiki.parent ?? currentWiki
-  }
-  cteMap.tables[currentWiki.className][id].updatedAt = client === "postgres" ? new Date() : new Date().toISOString()
+function passEntityColumns2AncestorMaps(id, instanceChangeObj, classWiki, cteMap, client) {
+   cteMap.tables ??= {}
+   const baseClassCteMap = cteMap.tables[classWiki.className] ??= {}
+   baseClassCteMap[id] = { id }
+   let currentWiki = classWiki
+   while (currentWiki.parent) {
+      const classCteMap = cteMap.tables[currentWiki.parent.className] ??= {}
+      classCteMap[id] ??= { id }
+      classCteMap[id][newEntityInstanceSymb] = instanceChangeObj[newEntityInstanceSymb]
+      currentWiki = currentWiki.parent ?? currentWiki
+   }
+   const updatedAt = instanceChangeObj.updatedAt
+   cteMap.tables[currentWiki.className][id].updatedAt = client === "postgres" ? updatedAt : updatedAt.toISOString()
 }
 
 export function handleRelationalChanges(tableName, tableChangesObj, queryObj, paramIndex, sqlClient) {
   /**@type {any}*/ const target = queryObj[tableName] = {}
-  const categorizedIds = { added: {}, removed: {} }
-  const entries = Object.entries(tableChangesObj)
-  const idTypeArr = tableChangesObj[idTypeSymb]
+   const categorizedIds = { add: {}, remove: {} }
+   const {
+      joinindIdType,
+      joinedIdType,
+      joiningIdUnique
+   } = tableChangesObj[idTypeSymb]
 
-  for (const [baseEntityId, addedAndRemovedIds] of entries) {
-    if (addedAndRemovedIds.added) {
-      categorizedIds.added[baseEntityId] = []
-      for (const addedJoinId of addedAndRemovedIds.added) categorizedIds.added[baseEntityId].push(addedJoinId)
-    }
-    if (addedAndRemovedIds.removed) {
-      categorizedIds.removed[baseEntityId] = []
-      for (const removedJoinId of addedAndRemovedIds.removed) categorizedIds.removed[baseEntityId].push(removedJoinId)
-    }
-  }
+   for (const [baseEntityId, ids2AddAndRemove] of Object.entries(tableChangesObj)) {
+      if (ids2AddAndRemove.add) categorizedIds.add[baseEntityId] = Object.keys(ids2AddAndRemove.add)
+      if (ids2AddAndRemove.remove) categorizedIds.remove[baseEntityId] = Object.keys(ids2AddAndRemove.remove)
+   }
 
-  let addedIds = Object.entries(categorizedIds.added)
-  let removedIds = Object.entries(categorizedIds.removed)
+   let addedIds = Object.entries(categorizedIds.add)
+   let removedIds = Object.entries(categorizedIds.remove)
 
-  addedIds = addedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, idTypeArr[0]), joinedIdArr])
-  removedIds = removedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, idTypeArr[0]), joinedIdArr])
+   addedIds = addedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, joinindIdType), joinedIdArr])
+   removedIds = removedIds.map(([joiningId, joinedIdArr]) => [typecastStringId(joiningId, joinindIdType), joinedIdArr])
 
-  if (addedIds.length) [target.newRelationsObj, paramIndex] = junctionTableInsertion(addedIds, tableName, paramIndex, sqlClient)
-  if (removedIds.length) [target.deletedRelationsObj, paramIndex] = sqlClient === `postgres`
-    ? junctionTableRemovalPostgres(removedIds, tableName, paramIndex, idTypeArr)
-    : junctionTableRemovalSqlite(removedIds, tableName)
-  return paramIndex
+   if (addedIds.length) [target.insertRelationsObj, paramIndex] = junctionTableInsertion(addedIds, tableName, joiningIdUnique, paramIndex, sqlClient)
+   if (removedIds.length) [target.deleteRelationsObj, paramIndex] = sqlClient === `postgres`
+      ? junctionTableRemovalPostgres(removedIds, tableName, paramIndex, [joinindIdType, joinedIdType])
+      : junctionTableRemovalSqlite(removedIds, tableName)
+   return paramIndex
 }
 
-function junctionTableInsertion(addedIds, tableName, paramIndex, sqlClient) {
-  const snakedTableName = nonSnake2Snake(tableName)
-  let queryStr = `INSERT INTO ${snakedTableName} (joining_id, joined_id) VALUES `
-  const params = []
-  //const [joiningIdTypeCast, joinedIdTypeCast] = [getPostgresIdTypeCasting(idTypeArr[0]), getPostgresIdTypeCasting(idTypeArr[1])]
-  for (const baseAndJoinedIds of addedIds) {
-    const baseId = baseAndJoinedIds[0]
-    const joinedIds = baseAndJoinedIds[1]
-    while (joinedIds.length) {
-      queryStr += sqlClient === "postgres" ? `($${paramIndex++}, $${paramIndex++}), ` : `(?, ?), `
-      params.push(baseId, joinedIds.pop())
-    }
-  }
-  queryStr = queryStr.slice(0, -2)
-  if (sqlClient === "postgres") queryStr += ` RETURNING 1`
+function junctionTableInsertion(addedIds, tableName, joiningIdUnique, paramIndex, sqlClient) {
+   const snakedTableName = nonSnake2Snake(tableName)
+   let queryStr = `INSERT INTO ${snakedTableName} (joining_id, joined_id) VALUES `
+   const params = []
+   for (const [joiningId, joinedIds] of addedIds) {
+      while (joinedIds.length) {
+         queryStr += sqlClient === "postgres" ? `($${paramIndex++}, $${paramIndex++}), ` : `(?, ?), `
+         params.push(joiningId, joinedIds.pop())
+      }
+   }
+   queryStr = queryStr.slice(0, -2)
+   if (joiningIdUnique) queryStr += ` ON CONFLICT(joining_id) DO NOTHING`
+   else queryStr += ` ON CONFLICT(joining_id, joined_id) DO NOTHING`
+   if (sqlClient === "postgres") queryStr += ` RETURNING 1`
 
-  const returnedJunctionObj = { queryStr, params }
-  return [returnedJunctionObj, paramIndex]
+   const returnedJunctionObj = { queryStr, params }
+   return [returnedJunctionObj, paramIndex]
 }
 
 
 export function handleUpserts(tableName, classChangesObj, queryObj, paramIndex, sqlClient) {
-  const classInstances = Object.entries(classChangesObj)
-  const inserts = []
-  const updates = []
-  queryObj[tableName] ??= {}
-  while (classInstances.length) {
-    //@ts-ignore
-    const [instanceId, instance] = classInstances.pop()
-    if (Object.keys(instance).length === 1) continue
-    if (instance[newEntityInstanceSymb]) inserts.push(instance)
-    else updates.push(instance)
-  }
+   const classInstances = Object.entries(classChangesObj)
+   const inserts = []
+   const updates = []
+   queryObj[tableName] ??= {}
+   while (classInstances.length) {
+      //@ts-ignore
+      const [instanceId, instance] = classInstances.pop()
+      if (Object.keys(instance).length === 1) continue
+      if (instance[newEntityInstanceSymb]) inserts.push(instance)
+      else updates.push(instance)
+   }
 
-  if (inserts.length) paramIndex = insertNewRows(inserts, tableName, queryObj, paramIndex, sqlClient)
-  if (updates.length) paramIndex = updateRows(updates, tableName, queryObj, paramIndex, sqlClient)
-  return paramIndex
+   if (inserts.length) paramIndex = insertNewRows(inserts, tableName, queryObj, paramIndex, sqlClient)
+   if (updates.length) paramIndex = updateRows(updates, tableName, queryObj, paramIndex, sqlClient)
+   return paramIndex
 }
 
 export function typecastStringId(instanceId, idType) {
-  if (idType === `number`) return parseInt(instanceId, 10)
-  return instanceId
+   if (idType === `number`) return parseInt(instanceId, 10)
+   return instanceId
 }
 
 function insertNewRows(newRows, tableName, queryObj, paramIndex, client) {
   /**@type {any}*/ const target = queryObj[tableName].insert = { queryStr: ``, params: [] }
-  const snakedTableName = nonSnake2Snake(tableName)
-  const classWiki = OrmStore.store.classWikiDict[tableName]
-  const columns = Object.keys(classWiki.columns)
+   const snakedTableName = nonSnake2Snake(tableName)
+   const classWiki = OrmStore.store.classWikiDict[tableName]
+   const columns = Object.keys(classWiki.columns)
 
-  if (classWiki.parent) queryObj[tableName].parent = classWiki.parent.className
+   if (classWiki.parent) queryObj[tableName].parent = classWiki.parent.className
 
-  target.params = expandBuffer(target.params, newRows.length * columns.length)
-  let i = 0
-  let queryStr = `INSERT INTO ${snakedTableName} (${columns.map(column => nonSnake2Snake(column)).join(', ')}) VALUES `
+   target.params = expandBuffer(target.params, newRows.length * columns.length)
+   let i = 0
+   let queryStr = `INSERT INTO ${snakedTableName} (${columns.map(column => nonSnake2Snake(column)).join(', ')}) VALUES `
 
-  for (const instance of newRows) {
-    if (client === "postgres") queryStr += `(${columns.map(column => `$${paramIndex++}`).join(', ')}), \n`
-    else queryStr += `(${columns.map(column => `?`).join(', ')}), \n`
+   for (const instance of newRows) {
+      if (client === "postgres") queryStr += `(${columns.map(column => `$${paramIndex++}`).join(', ')}), \n`
+      else queryStr += `(${columns.map(column => `?`).join(', ')}), \n`
 
-    for (const column of columns) target.params[i++] = instance[column]
-  }
+      for (const column of columns) target.params[i++] = instance[column]
+   }
 
-  if (client === "postgres") target.queryStr = queryStr.slice(0, -3) + ` RETURNING 1`
-  else target.queryStr = queryStr.slice(0, -3)
-  return paramIndex
+   if (client === "postgres") target.queryStr = queryStr.slice(0, -3) + ` RETURNING 1`
+   else target.queryStr = queryStr.slice(0, -3)
+   return paramIndex
 }
 
 function updateRows(updatedRows, tableName, queryObj, paramIndex, client) {
   /**@type {any}*/ const target = queryObj[tableName].update = { queryStrArr: [], params2dArr: [] }
-  const snakedTableName = nonSnake2Snake(tableName)
-  const idType = OrmStore.getClassWiki(tableName).columns.id.type
+   const snakedTableName = nonSnake2Snake(tableName)
+   const idType = OrmStore.getClassWiki(tableName).columns.id.type
 
-  for (const row of updatedRows) {
-    let rowId = row.id
-    delete row.id
-    const updatedColumns = Object.entries(row)
-    //if (!updatedColumns.length) continue
-    rowId = typecastStringId(rowId, idType)
-    let queryStr = ``
-    let params = []
+   for (const row of updatedRows) {
+      let rowId = row.id
+      delete row.id
+      const updatedColumns = Object.entries(row)
+      //if (!updatedColumns.length) continue
+      rowId = typecastStringId(rowId, idType)
+      let queryStr = ``
+      let params = []
 
-    queryStr += `UPDATE ${snakedTableName} SET `
-    for (const [columnName, val] of updatedColumns) {
-      if (client === "postgres") queryStr += `${nonSnake2Snake(columnName)} = $${paramIndex++}, `
-      else queryStr += `${nonSnake2Snake(columnName)} = ?, `
+      queryStr += `UPDATE ${snakedTableName} SET `
+      for (const [columnName, val] of updatedColumns) {
+         if (client === "postgres") queryStr += `${nonSnake2Snake(columnName)} = $${paramIndex++}, `
+         else queryStr += `${nonSnake2Snake(columnName)} = ?, `
 
-      params.push(val)
-    }
-    if (client === "postgres") queryStr = queryStr.slice(0, -2) + ` WHERE id = $${paramIndex++} RETURNING 1`
-    else queryStr = queryStr.slice(0, -2) + ` WHERE id = ?`
+         params.push(val)
+      }
+      if (client === "postgres") queryStr = queryStr.slice(0, -2) + ` WHERE id = $${paramIndex++} RETURNING 1`
+      else queryStr = queryStr.slice(0, -2) + ` WHERE id = ?`
 
-    params.push(rowId)
-    target.queryStrArr.push(queryStr)
-    target.params2dArr.push(params)
-  }
-  return paramIndex
+      params.push(rowId)
+      target.queryStrArr.push(queryStr)
+      target.params2dArr.push(params)
+   }
+   return paramIndex
 }
 
 export function organizeChangeObj(dbChanges, cteMap, client) {
-  const classNames = Object.keys(dbChanges)
+   const classNames = Object.keys(dbChanges)
 
-  for (const className of classNames) {
-    const tableChangeObj = dbChanges[className]
-    const entityChangeObjects = Object.entries(tableChangeObj)
+   for (const className of classNames) {
+      const tableChangeObj = dbChanges[className]
+      const classWiki = OrmStore.getClassWiki(className)
+      const propClassificationDict = {}
+      for (const [instanceId, instanceChangeObj] of Object.entries(tableChangeObj)) {
+         let properties = Object.keys(instanceChangeObj)
 
-    for (const [instanceId, entityInstanceChangeObj] of entityChangeObjects) {
+         if (classWiki.parent) {
+            passEntityColumns2AncestorMaps(instanceId, instanceChangeObj, classWiki, cteMap, client)
+            properties = properties.filter(prop => prop !== "id" && prop !== "updatedAt")
+         }
 
-      const classWiki = OrmStore.store.classWikiDict[className]
-      let properties = Object.keys(entityInstanceChangeObj)
+         for (const property of properties) {
+            if (!propClassificationDict[property]) {
+               propClassificationDict[property] = getPropertyClassification(property, classWiki)
+            }
+            const [classification, columnType, mapWithProp] = propClassificationDict[property]
 
-      if (classWiki.parent) {
-        passEntityColumnsToAncestorMaps(instanceId, entityInstanceChangeObj, classWiki, cteMap, client)
-        properties = properties.filter(prop => prop !== "id" && prop !== "updatedAt")
+            if (classification === "Join" || classification === "ParentJoin") {
+               const add = Object.keys(instanceChangeObj[property].add)
+               const remove = Object.keys(instanceChangeObj[property].remove)
+               if (!add.length && !remove.length) continue
+
+               const junctionTableName = `${nonSnake2Snake(mapWithProp.className)}___${nonSnake2Snake(property)}_jt`
+
+               cteMap.junctions ??= {}
+               const tableCteMap = cteMap.junctions[junctionTableName] ??= {}
+               tableCteMap[idTypeSymb] = {
+                  joinindIdType: mapWithProp.columns.id.type,
+                  joinedIdType: columnType.columns.id.type,
+                  joiningIdUnique: !columnType.isArray
+               }
+
+               if (add.length) {
+                  tableCteMap[instanceId] ??= {}
+                  tableCteMap[instanceId].add = instanceChangeObj[property].add
+               }
+               if (remove.length) {
+                  tableCteMap[instanceId] ??= {}
+                  tableCteMap[instanceId].remove = instanceChangeObj[property].remove
+               }
+            }
+            else {
+               const tableName = mapWithProp.className
+               cteMap.tables ??= {}
+               const tableCteMap = cteMap.tables[tableName] ??= {}
+               const entityInstanceMap = tableCteMap[instanceId] ??= {}
+               //tableCteMap[idTypeSymb] = [mapWithProp.columns.id.type, columnType.type]
+
+               if (client === "postgres") entityInstanceMap[property] = instanceChangeObj[property]
+               else {
+                  const value = instanceChangeObj[property]
+                  entityInstanceMap[property] = jsValue2SqliteValue(value)
+               }
+               entityInstanceMap[newEntityInstanceSymb] = instanceChangeObj[newEntityInstanceSymb] ? true : false
+            }
+         }
       }
-
-      for (const property of properties) {
-        const [classification, columnType, mapWithProp] = getPropertyClassification(property, classWiki)
-
-        if (classification === "Join" || classification === "ParentJoin") {
-          const added = entityInstanceChangeObj[property].added
-          const removed = entityInstanceChangeObj[property].removed
-          if (!added.length && !removed.length) continue
-
-          const junctionTableName = `${nonSnake2Snake(mapWithProp.className)}___${nonSnake2Snake(property)}_jt`
-
-          cteMap.junctions ??= {}
-          const tableCteMap = cteMap.junctions[junctionTableName] ??= {}
-          tableCteMap[idTypeSymb] = [mapWithProp.columns.id.type, columnType.columns.id.type]
-
-          if (added.length) {
-            tableCteMap[instanceId] ??= {}
-            tableCteMap[instanceId].added = entityInstanceChangeObj[property].added
-          }
-          if (removed.length) {
-            tableCteMap[instanceId] ??= {}
-            tableCteMap[instanceId].removed = entityInstanceChangeObj[property].removed
-          }
-        }
-        else {
-          const tableName = mapWithProp.className
-          cteMap.tables ??= {}
-          const tableCteMap = cteMap.tables[tableName] ??= {}
-          const entityInstanceMap = tableCteMap[instanceId] ??= {}
-          //tableCteMap[idTypeSymb] = [mapWithProp.columns.id.type, columnType.type]
-
-          if (client === "postgres") entityInstanceMap[property] = entityInstanceChangeObj[property]
-          else {
-            const value = entityInstanceChangeObj[property]
-            entityInstanceMap[property] = jsValue2SqliteValue(value)
-          }
-          entityInstanceMap[newEntityInstanceSymb] = entityInstanceChangeObj[newEntityInstanceSymb] ? true : false
-        }
-      }
-    }
-  }
+   }
 }
 
 

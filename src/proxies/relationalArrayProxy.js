@@ -8,6 +8,7 @@ import { setUpdatedAtValue } from "./instanceProxy.js"
 
 
 export function createRelationalArrayProxy(instance, propertyName, array = [], /**@type {string | undefined}*/ arrElementValidType = undefined) {
+    if (array === undefined) array = []
     const instanceId = instance.id
     const instanceClass = instance.constructor.name
     //const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
@@ -18,17 +19,15 @@ export function createRelationalArrayProxy(instance, propertyName, array = [], /
 
     return new Proxy(array, {
         //ARRAY PROXIES ARE FOR RELATIONAL X:N
-        get(target, key, receiver) {
+        get(target, key) {
             if (key === "source_") return target
             else if (key === "eListener_") return eventListenersObj
 
             if (key === "includes") return (instance) => {
-                //@ts-ignore
                 if (eventListenersObj[instance.id]) return true
                 return false
             }
             else if (key === "sort") {
-                //for (const key in eventListenersObj) delete eventListenersObj[key]
                 return function (sortArgFunc) {
                     const sorted = Array.prototype.sort.call(target, sortArgFunc)
                     return sorted
@@ -48,27 +47,29 @@ export function createRelationalArrayProxy(instance, propertyName, array = [], /
 
 
 export function relationalArrayProxySetHandler(target, key, newInstanceProxy, propertyName, instanceId, eventListenersObj, instanceClass) {
-    if (eventListenersObj[newInstanceProxy.id]) throw new Error(`Do not insert duplicate entity instances into a relational array. Use the 'includes' method for O(1) lookup.`)
+    const newId = newInstanceProxy.id
+    if (eventListenersObj[newId]) throw new Error(`Do not insert duplicate entity instances into a relational array. Use the 'includes' method for O(1) lookup.`)
     const index = parseInt(key)
     if (index > -1) {
         const oldInstanceProxy = target[index]
         const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
         const instanceChangesObj = classChangeObj[instanceId] ??= {}
-        const relationChangeLogger = instanceChangesObj[propertyName] ??= { added: [], removed: [] }
+        const relationChangeLogger = instanceChangesObj[propertyName] ??= { add: {}, remove: {} }
+        const { add, remove } = relationChangeLogger
 
         if (oldInstanceProxy) {
-            const oldValueInAdded = relationChangeLogger.added.indexOf(oldInstanceProxy.id)
-            if (oldValueInAdded > -1) relationChangeLogger.added.splice(oldValueInAdded, 1)
-            else relationChangeLogger.removed.push(oldInstanceProxy.id)
+            const oldId = oldInstanceProxy.id
+            if (add[oldId]) delete add[oldId]
+            else remove[oldId] = true
 
             const oldProxyEventEmitter = oldInstanceProxy.eEmitter_
             // do not emit event to array any longer
-            oldProxyEventEmitter.removeEventListener("delete", eventListenersObj[oldInstanceProxy.id])
-            delete eventListenersObj[oldInstanceProxy.id]
+            oldProxyEventEmitter.removeEventListener("delete", eventListenersObj[oldId])
+            delete eventListenersObj[oldId]
         }
-        const newValueInRemoved = relationChangeLogger.removed.indexOf(newInstanceProxy.id)
-        if (newValueInRemoved > -1) relationChangeLogger.removed.splice(newValueInRemoved, 1)
-        else relationChangeLogger.added.push(newInstanceProxy.id)
+
+        if (remove[newId]) delete remove[newId]
+        else add[newId] = true
 
         target[index] = newInstanceProxy
         addEventListener2ArrayProxy(newInstanceProxy, target, eventListenersObj, instanceId, propertyName, instanceClass)
@@ -103,22 +104,30 @@ export function relationalArrayProxyDeleteHandler(target, key, propertyName, ins
 }
 
 export function logRelationalArrayRemoval(instance, propertyName, removedId, instanceChangesObj) {
-    if (!instanceChangesObj[propertyName]) {
-        instanceChangesObj[propertyName] = { added: [], removed: [removedId] }
+    const relationalArrChangeLogger = instanceChangesObj[propertyName]
+    if (!relationalArrChangeLogger) {
+        instanceChangesObj[propertyName] = { add: {}, remove: { [removedId]: true } }
     }
     else {
-        const relationalArrChangeLogger = instanceChangesObj[propertyName]
-        const oldIndex = relationalArrChangeLogger.added.indexOf(removedId)
-        if (oldIndex > -1) relationalArrChangeLogger.added.splice(oldIndex, 1)
-        else relationalArrChangeLogger.removed.push(removedId)
+        const { add, remove } = relationalArrChangeLogger
+        if (add[removedId]) delete add[removedId]
+        else remove[removedId] = true
     }
     setUpdatedAtValue(instance, instanceChangesObj)
 }
 
 export function addEventListener2ArrayProxy(proxy, array, eventListenersObj, idOfInstanceWithArray, propertyOfArray, instanceClass) {
     const emitter = proxy.eEmitter_
+    const listenerIdArr = [proxy.constructor.name, proxy.id]
+    const { entityMapsObj } = OrmStore.store
     const eventFunc = (event) => {
-        if (proxy._isDeleted_) return
+        const [className, id] = listenerIdArr
+        const entityMap = entityMapsObj[className]
+        if (!entityMap) return
+        let listeningInstance = entityMap.get(id)
+        if (!listeningInstance) return
+        listeningInstance = listeningInstance.deref()
+        if (listeningInstance._isDeleted_) return
         const id2delete = event.detail.id
         delete eventListenersObj[id2delete]
         // console.log(`Delete event sent from ${id2delete}_${proxy.constructor.name} to proxy array`)
@@ -127,7 +136,7 @@ export function addEventListener2ArrayProxy(proxy, array, eventListenersObj, idO
         array.splice(index, 1)
         const classChangeObj = OrmStore.getClassChangesObj(instanceClass)
         const instanceChangesObj = classChangeObj[idOfInstanceWithArray] ??= {}
-        logRelationalArrayRemoval(proxy, propertyOfArray, id2delete, instanceChangesObj)
+        logRelationalArrayRemoval(listeningInstance, propertyOfArray, id2delete, instanceChangesObj)
     }
 
     emitter.addEventListener(

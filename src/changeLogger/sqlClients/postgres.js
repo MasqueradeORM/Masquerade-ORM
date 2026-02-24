@@ -2,34 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { coloredBackgroundConsoleLog, nonSnake2Snake } from "../../misc/miscFunctions.js"
-import { successfullSaveOperation } from "../save.js"
+import { logSuccessfulSave } from "../save.js"
 
-export async function postgresSaveQuery(deletedUncalledRelationsArr, classesQueryObj, junctionsQueryObj, deletedInstancesArr, paramIndex, dbConnection) {
+export async function postgresSaveQuery({
+    deletedUnloadedRelations,
+    classesQueryObj,
+    junctionsQueryObj,
+    deletedInstances,
+    dbConnection,
+    paramIndex
+}) {
     let i = 0
     let finalString = 'WITH'
     const finalParams = []
     paramIndex = 1
-
+    let errMsg
     let queryFunc = dbConnection.query.bind(dbConnection)
     let queryFuncWithTryCatch = async (query, params, forDeletedUncalledRelations = false) => {
         try {
             await queryFunc(query, params)
-            if (!forDeletedUncalledRelations) successfullSaveOperation()
+            if (!forDeletedUncalledRelations) logSuccessfulSave()
         }
         catch (e) {
             coloredBackgroundConsoleLog(`Database save failed. ${e}\n`, `failure`)
+            errMsg = e
         }
     }
 
-    if (deletedUncalledRelationsArr) {
+    if (deletedUnloadedRelations) {
         const paramsArr = []
         let finalString = 'WITH'
-        for (const [tableName, { idType, params }] of Object.entries(deletedUncalledRelationsArr)) {
-            const queryStr = `DELETE FROM ${tableName} WHERE joining_id =  ANY($${paramIndex++}::${idType}[])`
+        for (const [tableName, { idType, params: ids }] of Object.entries(deletedUnloadedRelations)) {
+            const queryStr = `DELETE FROM ${tableName} WHERE joining_id = ANY($${paramIndex++}::${idType}[])`
             finalString += ` cte${i++} AS (` + queryStr + `), `
-            paramsArr.push(params)
+            paramsArr.push(ids)
         }
         await queryFuncWithTryCatch(finalString.slice(0, -2) + ` SELECT 1`, paramsArr, true)
+        if (errMsg) throw (errMsg)
     }
 
     for (const upsertObj of Object.values(classesQueryObj)) {
@@ -44,28 +53,29 @@ export async function postgresSaveQuery(deletedUncalledRelationsArr, classesQuer
     }
 
     for (const junctionObj of Object.values(junctionsQueryObj)) {
-        if (junctionObj.newRelationsObj) {
-            finalString += ` cte${i++} AS (` + junctionObj.newRelationsObj.queryStr + `), `
-            finalParams.push(...junctionObj.newRelationsObj.params)
+        if (junctionObj.insertRelationsObj) {
+            finalString += ` cte${i++} AS (` + junctionObj.insertRelationsObj.queryStr + `), `
+            finalParams.push(...junctionObj.insertRelationsObj.params)
         }
 
-        if (junctionObj.deletedRelationsObj) {
-            finalString += ` cte${i++} AS (` + junctionObj.deletedRelationsObj.queryStr + `), `
-            finalParams.push(...junctionObj.deletedRelationsObj.params)
+        if (junctionObj.deleteRelationsObj) {
+            finalString += ` cte${i++} AS (` + junctionObj.deleteRelationsObj.queryStr + `), `
+            finalParams.push(...junctionObj.deleteRelationsObj.params)
         }
     }
 
-    if (deletedInstancesArr) {
+    if (deletedInstances) {
         paramIndex = finalParams.length + 1
-        for (const [tableName, param] of deletedInstancesArr) {
-            const queryStr = `DELETE FROM ${tableName} WHERE id = $${paramIndex++}`
+        for (const [tableName, deletedIds] of Object.entries(deletedInstances)) {
+            const queryStr = `DELETE FROM ${tableName} WHERE id = ANY($${paramIndex++})`
             finalString += ` cte${i++} AS (` + queryStr + `), `
-            finalParams.push(param)
+            finalParams.push(deletedIds)
         }
     }
 
     finalString = finalString.slice(0, -2) + ` SELECT 1`
     await queryFuncWithTryCatch(finalString, finalParams)
+    if (errMsg) throw (errMsg)
 }
 
 

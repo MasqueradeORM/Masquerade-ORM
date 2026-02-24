@@ -147,22 +147,23 @@ export function createStatementsDict(whereOutput, orderByOutput, limitArg, offse
         offsetStr: undefined
     }
     let queryParams
-    orderByOutput.statements = [...Object.values(orderByOutput.statements)]
+    let orderByStatements = orderByOutput.statements = Object.values(orderByOutput.statements)
+    let whereStatements = whereOutput.statements
 
     if (sqlClient === `sqlite`) {
-        queryParams = [...whereOutput.params, ...orderByOutput.params]
-        whereOutput.statements = changeStatementsPlaceholders(whereOutput.statements)
-        orderByOutput.statements = changeStatementsPlaceholders(orderByOutput.statements)
+        queryParams = [...orderByOutput.params, ...whereOutput.params, ]
+        whereStatements = changeStatementsPlaceholders(whereStatements)
+        orderByStatements = changeStatementsPlaceholders(orderByStatements)
     }
     else {
-        queryParams = [...whereOutput.params, ...orderByOutput.params]
-        const offsetInt = whereOutput.params.length
-        if (offsetInt) orderByOutput.statements = offsetStatementsPlaceholders(orderByOutput.statements, offsetInt)
+        queryParams = [...orderByOutput.params, ...whereOutput.params, ]
+        const offsetInt = orderByOutput.params.length
+        if (offsetInt) whereStatements = offsetStatementsPlaceholders(whereStatements, offsetInt)
     }
 
-    if (whereOutput.statements.length) statementsDict.whereStr = createWhereStr(whereOutput)
-    if (orderByOutput.statements.length) statementsDict.orderByStr = createOrderByStr(orderByOutput)
-    if (limitArg | offsetArg) {
+    if (whereStatements.length) statementsDict.whereStr = createWhereStr(whereStatements)
+    if (orderByStatements.length) statementsDict.orderByStr = createOrderByStr(orderByStatements)
+    if (limitArg || offsetArg) {
         const placeholder = () => sqlClient === 'postgres' ? `$${queryParams.length + 1}` : `?`
         if (limitArg) {
             statementsDict.limitStr = ` LIMIT ${placeholder()}`
@@ -177,10 +178,10 @@ export function createStatementsDict(whereOutput, orderByOutput, limitArg, offse
     return statementsDict
 }
 
-function createWhereStr(whereOutput) {
-    return ` WHERE (` + whereOutput.statements.join(`) AND (`) + `)`
+function createWhereStr(whereStatements) {
+    return ` WHERE (` + whereStatements.join(`) AND (`) + `)`
 }
 
-function createOrderByStr(orderByOutput) {
-    return `, ROW_NUMBER() OVER (ORDER BY ` + orderByOutput.statements.join(`, `) + `) AS row_order`
+function createOrderByStr(orderByStatements) {
+    return `, ROW_NUMBER() OVER (ORDER BY ` + orderByStatements.join(`, `) + `) AS row_order`
 }

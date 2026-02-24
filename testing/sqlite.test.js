@@ -118,6 +118,10 @@ test('test 1 - find basics and change logging', async (t) => {
     lastHouse.owner = undefined
     lastHouse.tenants = undefined
 
+    await House.find({})
+    await initORM(configObj, classes)
+    dbChanges = OrmStore.store.dbChangesObj
+
     undefinedTest = await House.find({
         where: { id: lastHouse.id },
         relations: { owner: true, tenants: true }
@@ -125,7 +129,7 @@ test('test 1 - find basics and change logging', async (t) => {
 
     await t.test('assigning undefined values to relational props', async () => {
         assert.strictEqual(undefinedTest[0].owner, undefined)
-        assert.deepStrictEqual(undefinedTest[0].tenants, [])
+        assert.deepStrictEqual(undefinedTest[0].tenants, undefined)
     })
 
     await t.test('presave new instances', async (t) => {

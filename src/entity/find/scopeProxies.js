@@ -12,6 +12,7 @@ export function classWiki2ScopeObj(classWiki) {
         uncalledJunctions_: classWiki.junctions ?? classWiki.junctions_,
     }
     if (classWiki.isArray || classWiki.isArray_) scopeProxy.isArray_ = true
+    if (classWiki.optional || classWiki.optional_) scopeProxy.optional_ = true
     return scopeProxy
 }
 

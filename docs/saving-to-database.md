@@ -1,7 +1,10 @@
 # Saving to the Database
-In MasqueradeORM there is no explicit save call.
+In MasqueradeORM, changes to instances will be persisted automatically and `implicitly`.
+If you prefer you can always `explicitly` write to the database using the `save()` method.
 
-The code below is all that is needed to persist a new class instance in the database:
+
+## Implicit Persistence
+The code below is all that is needed to write a new class instance into the database:
 ```js
 new YourClass() 
 ```
@@ -26,20 +29,33 @@ Whenever the server is about to perform an async operation (for example, when ex
 Below is the order of operations:   
 **create/change data → hit an async boundary → ORM saves → safe to read**
 
-### Shutting off server
+### Shutting Off Server for Implicit Save Enjoyers
 
-When shutting off the server, to guarantee that all instance/row mutations are saved safely, perform a READ operation:
+When shutting off the server, to guarantee that all instance/row mutations are saved safely, perform a read operation:
 
 ```js
 async function shutdown() {
   console.log('Shutting down gracefully…')
 
-  await SomeClass.find({where: updatedAt: new Date()})
+  await SomeClass.find({ where: { updatedAt: new Date() } })
 
   server.close(() => {
     console.log('HTTP server closed')
     process.exit(0)
   })
+}
+```
+
+## Explicit Persistence
+
+```js
+const user = await User.find({where: id: 123)})
+user.isAdmin = true
+try {
+  await user.save()
+} 
+catch (e) {
+  console.log(e)
 }
 ```
 

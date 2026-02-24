@@ -2,9 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { coloredBackgroundConsoleLog, nonSnake2Snake } from "../../misc/miscFunctions.js"
-import { successfullSaveOperation } from "../save.js"
+import { logSuccessfulSave } from "../save.js"
 
-export function sqliteSaveQuery(deletedUncalledRelationsArr, classesQueryObj, junctionsQueryObj, deletedInstancesArr, dbConnection) {
+export function sqliteSaveQuery({
+    deletedUnloadedRelations,
+    classesQueryObj,
+    junctionsQueryObj,
+    deletedInstances,
+    dbConnection
+}) {
+    let errMsg
     const classTableNames = Object.keys(classesQueryObj ?? {})
     const queryFuncWithTryCatch = (queryStr, params) => {
         try {
@@ -15,6 +22,7 @@ export function sqliteSaveQuery(deletedUncalledRelationsArr, classesQueryObj, ju
         catch (e) {
             coloredBackgroundConsoleLog(`Database save failed. ${e}\n`, `failure`)
             dbConnection.exec('ROLLBACK;')
+            errMsg = e
             return false
         }
     }
@@ -22,10 +30,11 @@ export function sqliteSaveQuery(deletedUncalledRelationsArr, classesQueryObj, ju
     let visitedTables = []
     dbConnection.exec('BEGIN;')
 
-    if (deletedUncalledRelationsArr) {
-        for (const [tableName, idArr] of Object.entries(deletedUncalledRelationsArr)) {
+    if (deletedUnloadedRelations) {
+        for (const [tableName, idObj] of Object.entries(deletedUnloadedRelations)) {
+            const { idType, params: idArr } = idObj
             const queryStr = `DELETE FROM ${tableName} WHERE joining_id IN (${idArr.map(id => `?`).join(`, `)})`
-            if (!queryFuncWithTryCatch(queryStr, idArr)) return
+            if (!queryFuncWithTryCatch(queryStr, idArr)) throw (errMsg)
         }
     }
 
@@ -35,48 +44,52 @@ export function sqliteSaveQuery(deletedUncalledRelationsArr, classesQueryObj, ju
 
         visitedTables = queryObj.parent
             ? sqliteHandleAncestry(tableName, queryObj, visitedTables, classesQueryObj, queryFuncWithTryCatch)
-            : queryQueryObj(queryObj, tableName, visitedTables, queryFuncWithTryCatch)
-        if (!visitedTables) return
+            : executeSave(queryObj, tableName, visitedTables, queryFuncWithTryCatch)
+        if (!visitedTables) throw (errMsg)
     }
 
     const junctionTableQueryObjects = Object.values(junctionsQueryObj ?? {})
     for (const queryObj of junctionTableQueryObjects) {
-        if (queryObj.deletedRelationsObj)
-            if (!queryFuncWithTryCatch(queryObj.deletedRelationsObj.queryStr, queryObj.deletedRelationsObj.params)) return
 
-        if (queryObj.newRelationsObj)
-            if (!queryFuncWithTryCatch(queryObj.newRelationsObj.queryStr, queryObj.newRelationsObj.params)) return
+        if (queryObj.deleteRelationsObj) {
+            const { queryStr, params } = queryObj.deleteRelationsObj
+            if (!queryFuncWithTryCatch(queryStr, params)) throw (errMsg)
+        }
+
+        if (queryObj.insertRelationsObj) {
+            const { queryStr, params } = queryObj.insertRelationsObj
+            if (!queryFuncWithTryCatch(queryStr, params)) throw (errMsg)
+        }
     }
 
-    if (deletedInstancesArr) {
-        for (const [tableName, param] of deletedInstancesArr) {
-            const queryStr = `DELETE FROM ${tableName} WHERE id = ?;`
-            if (!queryFuncWithTryCatch(queryStr, [param])) return
+    if (deletedInstances) {
+        for (const [tableName, deletedIds] of Object.entries(deletedInstances)) {
+            const placeholders = deletedIds.map(id => `?`)
+            const queryStr = `DELETE FROM ${tableName} WHERE id IN (${placeholders.join(',')});`
+            if (!queryFuncWithTryCatch(queryStr, deletedIds)) throw (errMsg)
         }
     }
 
     dbConnection.exec('COMMIT;')
-    successfullSaveOperation()
+    logSuccessfulSave()
 }
 
 
-function queryQueryObj(queryObj, tableName, visitedTables, queryFuncWithTryCatch) {
+function executeSave(queryObj, tableName, visitedTables, queryFuncWithTryCatch) {
     visitedTables.push(tableName)
     if (queryObj.insert) {
         if (!queryFuncWithTryCatch(queryObj.insert.queryStr, queryObj.insert.params)) return false
     }
-
     if (queryObj.update) {
         for (const [index, queryStr] of Object.entries(queryObj.update.queryStrArr))
             if (!queryFuncWithTryCatch(queryStr, queryObj.update.params2dArr[index])) return false
     }
-
     return visitedTables
 }
 
 function sqliteHandleAncestry(tableName, queryObj, visitedTables, classesQueryObj, queryFuncWithTryCatch) {
     if (visitedTables.includes(queryObj.parent)) {
-        const queryRes = queryQueryObj(queryObj, tableName, visitedTables, queryFuncWithTryCatch)
+        const queryRes = executeSave(queryObj, tableName, visitedTables, queryFuncWithTryCatch)
         if (queryRes) {
             visitedTables = queryRes
             return visitedTables
@@ -95,7 +108,7 @@ function sqliteHandleAncestry(tableName, queryObj, visitedTables, classesQueryOb
     while (ancestryArr.length) {
         const ancestorTableName = ancestryArr.pop()
         currentQueryObj = classesQueryObj[ancestorTableName]
-        const queryRes = queryQueryObj(currentQueryObj, ancestorTableName, visitedTables, queryFuncWithTryCatch)
+        const queryRes = executeSave(currentQueryObj, ancestorTableName, visitedTables, queryFuncWithTryCatch)
         if (queryRes) visitedTables = queryRes
         else return false
     }

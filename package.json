@@ -1,6 +1,6 @@
 {
   "name": "masquerade-orm",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Lightweight ORM compatible with SQLite and Postgresql in Node.js",
   "keywords": [
     "orm",

@@ -32,8 +32,7 @@ export class Entity {
   /** @abstract */
   constructor() {
     const className = this.constructor.name
-
-    const { classWikiDict, idLogger, entityMapsObj } = OrmStore.store
+    const { classWikiDict, idLogger, entityMapsObj, dbChangesObj } = OrmStore.store
     if (!classWikiDict) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
     else if (!classWikiDict[className]) throw new Error(`Cannot create an instance of class '${className}' since it is an abstract class.`)
 
@@ -52,6 +51,8 @@ export class Entity {
     const proxy = proxifyEntityInstanceObj(this)
     const entityMap = entityMapsObj[className] ??= new Map()
     insertProxyIntoEntityMap(proxy, entityMap)
+    const classChangeObj = dbChangesObj[className] ??= {}
+    classChangeObj[idVal] ??= { id: idVal, updatedAt: this.updatedAt }
     ChangeLogger.flushChanges()
     return proxy
   }
@@ -92,26 +93,21 @@ export class Entity {
     return instanceArr
   }
 
-  // async save() {
-  //   const { dbConnection, classWikiDict } = OrmStore.store
-  //   if (!dbConnection) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
-  //   const className = this.constructor.name
-  //   let classWiki = classWikiDict[className]
-
-  //   const branchesCteArray = []
-  //   const createdInstacesLogger = []
-
-  //   newRootInsertionCte(this, classWiki, branchesCteArray, createdInstacesLogger)
-  //   let queryObj = parseInsertionQueryObj(branchesCteArray)
-
-  //   try {
-  //     //@ts-ignore
-  //     await pool.query(queryObj.queryStr, queryObj.values)
-  //   }
-  //   catch (e) {
-  //     console.warn(e)
-  //   }
-  // }
+  /**
+  * Saves all changes made to the instance.
+  * 
+  * @throws {Error} If the save fails.
+  */
+  async save() {
+    const { dbConnection, classWikiDict } = OrmStore.store
+    if (!dbConnection) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
+    const className = this.constructor.name
+    const classWiki = classWikiDict[className]
+    if (!classWiki) throw new Error(`The class ${className} is not integrated into the ORM. Please include it in the boot method and restart.`)
+    // @ts-ignore
+    if (this._isDeleted_) return
+    await ChangeLogger.save({ classWiki, id: this.id })
+  }
 
   /**
   * Hard deletes the instance from the database. May require a pre-deletion step - the 'getDependents' method.
@@ -155,8 +151,9 @@ export class Entity {
     }
     else targetTableName = className
 
-    dbChangesObj.deletedInstancesArr ??= []
-    dbChangesObj.deletedInstancesArr.push([nonSnake2Snake(targetTableName), id4Deletion])
+    const deletionDict = dbChangesObj.$deletedInstances ??= {}
+    const classDeletionArr = deletionDict[nonSnake2Snake(targetTableName)] ??= []
+    classDeletionArr.push(id4Deletion)
     if (dbChangesObj[className] && dbChangesObj[className][id4Deletion]) delete dbChangesObj[className][id4Deletion]
 
     //@ts-ignore

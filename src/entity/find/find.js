@@ -139,28 +139,29 @@ export function findColumnObjOnWiki(propertyName, scopedWiki) {
 }
 
 export function junctionProp2Wiki(scopedWiki, propertyName) {
-    let mapWithJunction
-    if (scopedWiki.junctions[propertyName]) mapWithJunction = scopedWiki.junctions[propertyName]
+    let joinedClassWiki
+    if (scopedWiki.junctions[propertyName]) joinedClassWiki = scopedWiki.junctions[propertyName]
     else {
         let currentParent = scopedWiki.parent
         while (!currentParent.junctions[propertyName]) currentParent = currentParent.parent
-        mapWithJunction = currentParent.junctions[propertyName]
+        joinedClassWiki = currentParent.junctions[propertyName]
     }
-    return mapWithJunction
+    return joinedClassWiki
 }
 
 export function fillCalledRelationsOnInstance(instance, resultObj, scopedWiki, relationalProperties2Add, Entities) {
     for (const propertyName of relationalProperties2Add) {
-        const scopedMap4Junction = junctionProp2Wiki(scopedWiki, propertyName)
-        if (scopedMap4Junction.isArray) {
+        const joinedClassWiki = junctionProp2Wiki(scopedWiki, propertyName)
+        if (joinedClassWiki.isArray) {
             if (!resultObj[propertyName].length) {
-                instance[propertyName] = createRelationalArrayProxy(instance, propertyName)
+                if (joinedClassWiki.optional) instance[propertyName] = undefined
+                else instance[propertyName] = createRelationalArrayProxy(instance, propertyName)
                 continue
             }
 
             instance[propertyName] = []
             for (let i = 0; i < resultObj[propertyName].length; i++) {
-                const instanceProxy = rowObj2InstanceProxy(resultObj[propertyName][i], scopedMap4Junction, Entities)
+                const instanceProxy = rowObj2InstanceProxy(resultObj[propertyName][i], joinedClassWiki, Entities)
                 instance[propertyName][i] = instanceProxy
             }
             instance[propertyName] = createRelationalArrayProxy(instance, propertyName, instance[propertyName])
@@ -168,7 +169,7 @@ export function fillCalledRelationsOnInstance(instance, resultObj, scopedWiki, r
         else {
             instance[propertyName] = undefined
             if (!resultObj[propertyName]) continue
-            const instanceProxy = rowObj2InstanceProxy(resultObj[propertyName], scopedMap4Junction, Entities)
+            const instanceProxy = rowObj2InstanceProxy(resultObj[propertyName], joinedClassWiki, Entities)
             instance[propertyName] = instanceProxy
         }
     }

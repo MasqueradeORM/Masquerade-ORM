@@ -8,7 +8,7 @@ import { fillCalledRelationsOnInstance, junctionProp2Wiki, getRelationalPropName
 import { postgresDbValHandling } from '../entity/find/sqlClients/postgresFuncs.js'
 import { sqliteDbValHandling } from '../entity/find/sqlClients/sqliteFuncs.js'
 import { LazyPromise } from '../misc/classes.js'
-import {  FinalizationRegistrySymb, ORM } from '../ORM/ORM.js'
+import { FinalizationRegistrySymb, ORM } from '../ORM/ORM.js'
 import { coloredBackgroundConsoleLog, getPropertyClassification, js2SqlTyping, nonSnake2Snake, postgres2sqliteQueryStr, snake2Pascal } from '../misc/miscFunctions.js'
 import { createNonRelationalArrayProxy } from './nonRelationalArrayProxy.js'
 import { createObjectProxy } from './objectProxy.js'
@@ -145,7 +145,7 @@ export function instanceProxySetHandler(target, key, value, eventListenersObj, c
 
     if (oldValue instanceof LazyPromise) uncalledPropertySetHandler(target, key, value, [classification, columnType, classContainingProperty])
     // if (oldValue instanceof LazyPromise) coloredBackgroundConsoleLog(`Do not overwrite a LazyPromise value. Please use the static 'setUnloadedVal' method of LazyPromise instead. Note: this will wipe any unloaded relational data.`, `warning`)
-    else if (key === "id") coloredBackgroundConsoleLog(`Warning: do not assign id values. Id value is unchanged.`, `warning`)
+    else if (key === "id") coloredBackgroundConsoleLog(`Warning: do not assign id values. Id remains unchanged.`, `warning`)
     else if (classification === "Primitive" || classification === "ParentPrimitive") {
         const expectedValType = columnType.type
         const valType = Array.isArray(value) ? "array" : value instanceof Date ? "Date" : typeof value
@@ -175,54 +175,52 @@ export function instanceProxySetHandler(target, key, value, eventListenersObj, c
         }
         else target[key] = value
 
-        if (valChanged) insertIntoDbChanges(target, key, value, dbChangesObj, entityClass, isArray, expectedValType)
+        if (valChanged) logInChangeLogger(target, key, value, dbChangesObj, entityClass, isArray, expectedValType)
     }
     else if (classification === "Join" || classification === "ParentJoin") {
-        const expectedValType = columnType.className
-        const isOptional = columnType.optional
+        const { className: expectedValType, optional } = columnType
         dbChangesObj[entityClass] ??= {}
         const instanceChangeObj = dbChangesObj[entityClass][target.id] ??= {}
+        const isValid = validateRelationalValSetting(target, key, value, isArray, expectedValType, optional, oldValue, entityClass)
+        if (!isValid) return
 
         if (isArray) {
-            const isVald = validateRelationalValSetting(target, key, value, isArray, expectedValType, isOptional, oldValue, entityClass)
-            if (!isVald) return
+            const newArray = createRelationalArrayProxy(target, key, value, expectedValType) // includes only valid data
+            if (value !== undefined) target[key] = newArray
+            const oldIds = oldValue === undefined ? [] : oldValue.map(entity => entity.id)
+            const newIds = newArray.map(entity => entity.id) // always an array
 
-            const newArray = createRelationalArrayProxy(target, key, value, expectedValType) //includes only valid data
-            target[key] = newArray
+            const oldSet = new Set(oldIds)
+            const newSet = new Set(newIds)
+            const addedIds = newIds.filter(id => !oldSet.has(id))
+            const removedIds = oldIds.filter(id => !newSet.has(id))
+            if (!addedIds.length && !removedIds.length) return // do not remove
 
-            const oldIds = oldValue === undefined ? [] : oldValue.length ? oldValue.map(entity => entity.id) : []
-            const newIds = newArray.length ? newArray.map(entity => entity.id) : []
-
-            const added = newIds.length ? newIds.filter(id => !oldIds.includes(id)) : []
-            const removed = oldIds.length ? oldIds.filter(id => !newIds.includes(id)) : []
-            if (!added.length && !removed.length) return
-
-            const changeLogger = instanceChangeObj[key] ??= { added: [], removed: [] }
-            changeLogger.added.push(...added)
-            changeLogger.removed.push(...removed)
-
-            const prefilteredAdded = [...changeLogger.added]
-            const prefilteredRemoved = [...changeLogger.removed]
-
-            changeLogger.added = prefilteredAdded.filter(id => !prefilteredRemoved.includes(id))
-            changeLogger.removed = prefilteredRemoved.filter(id => !prefilteredAdded.includes(id))
+            const changeLogger = instanceChangeObj[key] ??= { add: {}, remove: {} }
+            const { add, remove } = changeLogger
+            for (const id of addedIds) {
+                if (remove[id]) delete remove[id]
+                else add[id] = true
+            }
+            for (const id of removedIds) {
+                if (add[id]) delete add[id]
+                else remove[id] = true
+            }
         }
         else if (!isArray) {
-            const isValid = validateRelationalValSetting(target, key, value, isArray, expectedValType, isOptional, oldValue, entityClass)
-            if (!isValid) return
-
             target[key] = value
-            const changeLogger = instanceChangeObj[key] ??= { added: [], removed: [] }
+            addEventListener2Proxy(target, key, eventListenersObj, oldValue)
+            const changeLogger = instanceChangeObj[key] ??= { add: {}, remove: {} }
+            const { add, remove } = changeLogger
             if (value) {
-                addEventListener2Proxy(target, key, eventListenersObj, oldValue)
-                const index = changeLogger.removed.indexOf(value.id)
-                if (index !== -1) changeLogger.removed.splice(index, 1)
-                else changeLogger.added.push(value.id)
+                const id = value.id
+                if (remove[id]) delete remove[id]
+                else add[id] = true
             }
             if (oldValue) {
-                const index = changeLogger.added.indexOf(oldValue.id)
-                if (index !== -1) changeLogger.added.splice(index, 1)
-                else changeLogger.removed.push(oldValue.id)
+                const id = oldValue.id
+                if (add[id]) delete add[id]
+                else remove[id] = true
             }
         }
         setUpdatedAtValue(target, instanceChangeObj)
@@ -237,31 +235,26 @@ export function setUpdatedAtValue(targetInstance, instanceChangeObj) {
     ChangeLogger.flushChanges()
 }
 
-function validateRelationalValSetting(target, key, value, isArray, expectedValType, isOptional, oldValue, entityClass) {
-    if (isArray) {
+function validateRelationalValSetting(target, key, value, isArray, expectedValType, optional, oldValue, entityClass) {
+    if (value === undefined && optional) target[key] = undefined
+    else if (isArray) {
         if (!Array.isArray(value)) {
-            if (!value && isOptional) target[key] = value
-            else {
-                if (oldValue !== undefined) {
-                    let warningStr = `Warning: improper value assigment to property '${key}' of class ${entityClass}. Expected value of type ${expectedValType}[]`
-                    warningStr += isOptional ? ` | undefined.` : `.`
-                    coloredBackgroundConsoleLog(warningStr + ` Value remains unchanged.`, `warning`)
-                }
-                return false
+            if (oldValue !== undefined) {
+                let warningStr = `Warning: improper value assigment to property '${key}' of class ${entityClass}. Expected value of type ${expectedValType}[]`
+                warningStr += optional ? ` | undefined.` : `.`
+                coloredBackgroundConsoleLog(warningStr + ` Value remains unchanged.`, `warning`)
             }
+            return false
         }
     }
     else {
         if (!value) {
-            if (isOptional) target[key] = value
-            else {
-                if (oldValue !== undefined) coloredBackgroundConsoleLog(`Warning: do not assign values of type 'undefined' to property '${key}' of class ${entityClass}. This property expects a value of type '${expectedValType}'. Value remains unchanged.`, `warning`)
-                return false
-            }
+            if (oldValue !== undefined) coloredBackgroundConsoleLog(`Warning: do not assign values of type 'undefined' to property '${key}' of class ${entityClass}. This property expects a value of type '${expectedValType}'. Value remains unchanged.`, `warning`)
+            return false
         }
         else if (!value.id || value.constructor.name !== expectedValType) {
             let warningStr = `Warning: improper value assigment to property '${key}' of class ${entityClass}. Expected value of type ${expectedValType}`
-            warningStr += isOptional ? ` | undefind.` : `.`
+            warningStr += optional ? ` | undefind.` : `.`
             if (oldValue !== undefined) coloredBackgroundConsoleLog(warningStr + ` Value remains unchanged.`, `warning`)
             return false
         }
@@ -269,7 +262,7 @@ function validateRelationalValSetting(target, key, value, isArray, expectedValTy
     return true
 }
 
-function insertIntoDbChanges(target, key, value, changesObj, entityClass, isArray, columnType) {
+function logInChangeLogger(target, key, value, changesObj, entityClass, isArray, columnType) {
     changesObj[entityClass] ??= {}
     const entityChangeObj = changesObj[entityClass][target.id] ??= {}
     if (isArray && columnType === `object`) entityChangeObj[key] = JSON.stringify(value)
@@ -279,13 +272,19 @@ function insertIntoDbChanges(target, key, value, changesObj, entityClass, isArra
 
 export function addEventListener2Proxy(listeningInstance, key, eventListenersObj, oldListened2Proxy) {
     const newListened2Proxy = listeningInstance[key]
-    if (!newListened2Proxy) return
     const oldEventFunc = eventListenersObj[key]
-    const emitter = newListened2Proxy.eEmitter_
+    const { entityMapsObj } = OrmStore.store
     if (oldEventFunc) oldListened2Proxy.eEmitter_.removeEventListener("delete", oldEventFunc)
     if (!newListened2Proxy || !newListened2Proxy.id) return
-
+    const listenerIdArr = [listeningInstance.constructor.name, listeningInstance.id]
+    const emitter = newListened2Proxy.eEmitter_
     const eventFunc = (event) => {
+        const [className, id] = listenerIdArr
+        const entityMap = entityMapsObj[className]
+        if (!entityMap) return
+        let listeningInstance = entityMap.get(id)
+        if (!listeningInstance) return
+        listeningInstance = listeningInstance.deref()
         if (listeningInstance._isDeleted_) return
         // console.log(`Delete event received by ${listeningInstance.id}_${listeningInstance.constructor.name} on property '${key}' from ${newListened2Proxy.id}_${newListened2Proxy.constructor.name}`)
         const id2delete = event.detail.id
@@ -308,68 +307,13 @@ export function addEventListener2Proxy(listeningInstance, key, eventListenersObj
 function logDeletionEvent(listeningInstance, key, id2delete) {
     const instanceChangeObj = OrmStore.getClassChangesObj(listeningInstance.constructor.name)
     const instanceChangesObj = instanceChangeObj[listeningInstance.id] ??= {}
-    if (!instanceChangesObj[key]) {
-        instanceChangesObj[key] = { added: [], removed: [id2delete] }
-    }
+    if (!instanceChangesObj[key]) instanceChangesObj[key] = { add: {}, remove: { [id2delete]: true } }
     else {
-        if (instanceChangesObj[key].added.includes(id2delete)) instanceChangesObj[key].added = []
-        else instanceChangesObj[key].removed = [id2delete]
+        const { add, remove } = instanceChangesObj[key]
+        if (add[id2delete]) delete add[id2delete]
+        else remove[id2delete] = true
     }
     setUpdatedAtValue(listeningInstance, instanceChangesObj)
-}
-
-export function findOrInsertInInstanceLogger(instance, classLoggingMap, nonRelationalPropertiesObj, instanceRelations) {
-    let instanceOnLogger = classLoggingMap.get(instance.id)
-    const nonRelationalProperties = Object.keys(nonRelationalPropertiesObj)
-    const instanceProperties = Object.keys(instance)
-
-    for (const prop of instanceProperties) {
-        if (nonRelationalProperties.includes(prop)) continue
-        instanceRelations[prop] = instance[prop]
-    }
-
-    if (instanceOnLogger) {
-        instanceOnLogger = instanceOnLogger.deref()
-        for (const prop of nonRelationalProperties) instanceRelations[prop] = instanceOnLogger[prop]
-        return instanceOnLogger
-    }
-
-    let relationlessInstance = structuredClone(instanceRelations)
-    for (const prop of nonRelationalProperties) {
-        relationlessInstance[prop] = instance[prop]
-        instanceRelations[prop] = instance[prop]
-    }
-
-    insertIntoEntityMap(relationlessInstance, classLoggingMap)
-    return relationlessInstance
-}
-
-export function createLazyLoadQueryStr(property, classWiki) {
-    const joinedTable = classWiki.junctions[property]
-    const baseTableName = nonSnake2Snake(classWiki.className)
-
-    const baseJtName = `${baseTableName}___${nonSnake2Snake(property)}_jt`
-    const promisedEntityTableName = nonSnake2Snake(joinedTable.className)
-
-    let selectStr = `SELECT entity.*`
-    let queryStr = ` FROM ${baseJtName} jt \n`
-    queryStr += `LEFT JOIN ${promisedEntityTableName} entity ON jt.${promisedEntityTableName}_id = entity.id \n`
-
-    if (joinedTable.parent) {
-        let currentTable = joinedTable
-        let i = 1
-        while (currentTable.parent) {
-            selectStr += `, entity${i}.*`
-            queryStr += ` LEFT JOIN ${nonSnake2Snake(currentTable.parent.className)} entity${i} ON entity${i === 1 ? '' : i - 1}.id = entity${i}.id \n`
-            currentTable = currentTable.parent
-            i++
-        }
-    }
-    queryStr += `WHERE jt.${baseTableName}_id = $1;`
-    queryStr = selectStr + queryStr
-
-    if (OrmStore.store.sqlClient === "sqlite") queryStr = postgres2sqliteQueryStr(queryStr)
-    return queryStr
 }
 
 
@@ -394,7 +338,7 @@ export function uncalledPropertySetHandler(target, key, value, columnClassificat
     }
     else if (!isArray && !Array.isArray(value)) {
         target[key] = value
-        instanceChangeObj[key] = { added: [value.id], removed: [] }
+        instanceChangeObj[key] = { add: { [value.id]: true }, remove: {} }
         setUpdatedAtValue(target, instanceChangeObj)
     }
     else {
@@ -405,9 +349,9 @@ export function uncalledPropertySetHandler(target, key, value, columnClassificat
     const junctionTableName = `${nonSnake2Snake(nameOfClassWithProp)}___${nonSnake2Snake(key)}_jt`
     const idType = js2SqlTyping(sqlClient, mapWithProp.columns.id.type)
 
-    const uncalledPropChangeObj = dbChangesObj.deletedUncalledRelationsArr ??= {}
-    const junctionChangeArr = uncalledPropChangeObj[junctionTableName] ??= { idType, params: [] }
-    junctionChangeArr.params.push(joiningId)
+    const uncalledPropChangeObj = dbChangesObj.$deletedUnloadedRelations ??= {}
+    const junctionChangeObj = uncalledPropChangeObj[junctionTableName] ??= { idType, params: [] }
+    junctionChangeObj.params.push(joiningId)
 }
 
 
@@ -481,12 +425,6 @@ export function proxifyEntityInstanceObj(instance, uncalledRelationalProperties)
         for (const prop of relational1To1sExcludingPromises) addEventListener2Proxy(proxy.source_, prop, eventListenersObj)
     }
     return proxy
-}
-
-
-export function insertIntoEntityMap(instance, entityMap) {
-    entityMap.set(instance.id, new WeakRef(instance))
-    ORM[FinalizationRegistrySymb].register(instance, [instance.constructor.name, instance.id])
 }
 
 

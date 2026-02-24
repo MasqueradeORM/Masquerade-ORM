@@ -19,6 +19,13 @@ export declare class Entity {
   ): Promise<T[]>
 
   /**
+  * Saves all changes made to the instance.
+  * 
+  * @throws {Error} If the save fails.
+  */
+  save(): void
+
+  /**
   * Hard deletes the instance from the database. May require a pre-deletion step - the 'getDependents' method.
   */
   delete(): void

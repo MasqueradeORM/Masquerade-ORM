@@ -435,7 +435,6 @@ export function inheritColumns(inheritingClass) {
 }
 
 export function linkClassMap(classMapsObj, dependenciesObj, referencesObj) {
-
     for (const classMap of Object.values(classMapsObj)) {
         const className = classMap.className
 
@@ -537,8 +536,8 @@ export function createJunctionColumnContext(tablesDict) {
         for (const columnObj of columns) {
             const isArray = columnObj.isArray
             if (columnObj.relational) {
-                const snakedColumnType = nonSnake2Snake(columnObj.type)
-                const joinedTable = tablesDict[snakedColumnType]
+                //const snakedColumnType = nonSnake2Snake(columnObj.type)
+                //const joinedTable = tablesDict[snakedColumnType]
                 columnObj.thisTableIdUnique = !isArray
             }
         }
@@ -610,21 +609,20 @@ export function formatForCreation(tablesDict) {
     return [formattedTables, alterTableArr]
 }
 export function produceTableCreationQuery(/**@type {TABLE}*/ table, /**@type {boolean}*/ isJunction = false) {
-    let query = `CREATE TABLE ${table.name} (\n`
+    let query = `CREATE TABLE ${table.name} (`
 
     if (!isJunction) {
         const primaryKeyType = table.columns.id.type
-        query += ` id ${primaryKeyType} PRIMARY KEY,\n`
+        query += ` id ${primaryKeyType} PRIMARY KEY, `
 
         const columnEntries = Object.entries(table.columns).filter(column => column[0] !== "id")
         query += columnEntries2QueryStr(columnEntries)
 
-        if (table.parent) query += `FOREIGN KEY (id) REFERENCES ${table.parent}(id) ON DELETE CASCADE \n);`
+        if (table.parent) query += `FOREIGN KEY (id) REFERENCES ${table.parent}(id) ON DELETE CASCADE);`
         else query = query.slice(0, -3) + `);`
     }
     else {
         const columns = Object.entries(table.columns)
-
         const baseColumn = {
             type: columns[0][1].type,
             unique: columns[0][1].unique,
@@ -635,19 +633,17 @@ export function produceTableCreationQuery(/**@type {TABLE}*/ table, /**@type {bo
             unique: columns[1][1].unique,
             ref: columns[1][1][`refTable`]
         }
-        query += ` joining_id ${baseColumn.type}`
 
-        if (baseColumn.unique) {
-            query += ` PRIMARY KEY`
-            query += ` REFERENCES ${baseColumn.ref}(id) ON DELETE CASCADE, \n`
-            query += `joined_id ${referencedColumn.type} NOT NULL REFERENCES ${referencedColumn.ref}(id) ON DELETE CASCADE`
-        }
+        let joiningIdStr = `joining_id ${baseColumn.type}`
+        let joinedIdStr = `joined_id ${referencedColumn.type} NOT NULL REFERENCES ${referencedColumn.ref}(id) ON DELETE CASCADE`
+        
+        if (baseColumn.unique) joiningIdStr += ` PRIMARY KEY REFERENCES ${baseColumn.ref}(id) ON DELETE CASCADE`
         else {
-            query += ` NOT NULL REFERENCES ${baseColumn.ref}(id) ON DELETE CASCADE, \n`
-            query += `joined_id ${referencedColumn.type} NOT NULL REFERENCES ${referencedColumn.ref}(id) ON DELETE CASCADE, \n`
-            query += `PRIMARY KEY (joining_id, joined_id)`
+            joiningIdStr += ` NOT NULL REFERENCES ${baseColumn.ref}(id) ON DELETE CASCADE`
+            joinedIdStr += `, PRIMARY KEY (joining_id, joined_id)`
         }
-        query += `\n);`
+
+       query += `${joiningIdStr}, ${joinedIdStr}); CREATE INDEX idx_${table.name}_joined_id ON ${table.name} (joined_id);`
     }
     return query
 }

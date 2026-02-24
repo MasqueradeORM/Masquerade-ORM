@@ -183,17 +183,37 @@ Classes that are connected to the ORM and mapped to database tables must follow 
 
 As long as these rules are adhered to, the class is valid.  
 
-**“Main” Type Mapping** 
-
+**“Main” Type Mapping**   
+Assuming the existence of this entity:
 ```ts
 class EntityExtendingClass extends Entity {
     // class properties + constructor
 }
-
-string[] // main type 'string'
-(string | undefined)[] | undefined // main type 'string'
-EntityExtendingClass[] | undefined // main type 'EntityExtendingClass'
 ```
+Example of 'main' type mapping
+```ts
+// Primitive array
+string[] // 'main' type = string
+
+// Optional primitive array
+(string | undefined)[] | undefined // 'main' type = string
+
+// Optional 1-to-many relation 
+EntityExtendingClass[] | undefined // 'main' type = EntityExtendingClass
+```
+**Note on Optional 1-to-Many Relations:** If you declare a 1-to-many relational property as optional (using `?` or `| undefined`), MasqueradeORM will return `undefined` when no related rows exist.
+
+This allows you to write simple truthiness checks:
+```ts
+// assuming the User class has a property 'posts' with type of Post[] | undefined AND the property was loaded
+if (user.posts) {
+  // has related rows
+} else {
+  // no related rows
+}
+```
+
+If you prefer to always receive an array (including an empty one), simply remove the optional modifier (`?` or `| undefined`) from the property type.
 
 <br>
 <div align="center">

@@ -56,7 +56,6 @@ npm install masquerade-orm
 - **Cross-column & cross-table conditions made effortless** - Use relational and non-relational data in *WHERE* and *ORDER BY* clauses with clean, IntelliSense-supported syntax that automatically handles the all the necessary joins for you.
 Focus on your business logic while the ORM manages the tedious work.
 - **Expressive template-literal *WHERE* clauses** - Write complex, readable conditions such as *LIKE*, ≥, *nested property access*, *array element matching* and more, by using IntelliSense-guided tagged template literals. Any valid SQL *WHERE* logic is possible, with safe parameter interpolation and full relational nesting support.
-
 - **Advanced, flexible sorting with aggregates, relations & custom expressions** - 
 Go far beyond basic *ASC*/*DESC*: support multi-column tie-breakers, *ORDER BY* with aggregates (*COUNT*, *AVG*, etc.), and fully custom computed expressions via template literals.
 Perfect for leaderboards, recommendations, or relevance scoring: all IntelliSense-friendly.
@@ -126,6 +125,17 @@ const newUser = new User('JohnDoe57', 'johnDoe@yahoo.com', 'passwordHash')
 // Finding a user by email
 const user = await findUserByEmail('johnDoe@yahoo.com') // The user's 'friendList' is a LazyPromise (not yet loaded - will load once awaited)
 console.log(user.username === 'JohnDoe57') // true
+```
+Alternatively, it is possible to explicitly save an instance's changes:
+```js
+const user = await User.find({where: id: 123)})
+user.isAdmin = true
+try {
+  await user.save()
+} 
+catch (e) {
+  console.log(e)
+}
 ```
 
 ### Mutating Data

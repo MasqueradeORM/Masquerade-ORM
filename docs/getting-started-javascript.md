@@ -62,6 +62,12 @@ Each relational property will create a junction table named `className___propNam
 import { DatabaseSync } from 'node:sqlite'   
 const yourDbConnection = new DatabaseSync('your-db-name')
 ```
+or 
+```js
+import Database from 'better-sqlite3'
+const yourDbConnection = new Database('your-db-name')
+```
+**note:** `better-sqlite3` provides better performance than `node:sqlite`.
 
 **PostgreSQL**
 
