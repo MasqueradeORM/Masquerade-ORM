@@ -3,11 +3,12 @@
 
 
 
+import { LazyPromise } from "@/misc/classes.js"
 import { ChangeLogger } from "../changeLogger/changeLogger.js"
 import { dependenciesSymb, referencesSymb } from "../misc/constants.js"
-import { nonSnake2Snake } from "../misc/miscFunctions.js"
+import { coloredBackgroundConsoleLog, nonSnake2Snake } from "../misc/miscFunctions.js"
 import { OrmStore } from "../misc/ormStore.js"
-import { insertProxyIntoEntityMap, proxifyEntityInstanceObj } from "../proxies/instanceProxy.js"
+import { insertProxyIntoEntityMap, promiseExecutor, proxifyEntityInstanceObj, searchEntityMap } from "../proxies/instanceProxy.js"
 import { throwDeletionErr, throwImproperDecouplingErr, validateDependentDataDecoupling } from "./delete/delete.js"
 import { insertDependentsData, internalFind } from "./delete/getDependents.js"
 import { executeFindQuery, parseFindWiki, destructureAndValidateArg } from "./find/find.js"
@@ -34,7 +35,8 @@ export class Entity {
     const className = this.constructor.name
     const { classWikiDict, idLogger, entityMapsObj, dbChangesObj } = OrmStore.store
     if (!classWikiDict) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
-    else if (!classWikiDict[className]) throw new Error(`Cannot create an instance of class '${className}' since it is an abstract class.`)
+    else if (!classWikiDict[className])
+      throw new Error(`Cannot create an instance of class '${className}' since it is either an abstract class or was not passed into the boot method.`)
 
     let idVal
     if (typeof idLogger[className] === `function`) idVal = idLogger[className]()
@@ -58,15 +60,15 @@ export class Entity {
   }
 
   /**
-   * Finds instances in the database that match the given argument.
-   * Relations do not get filtered by any where condition, only the root instances get filtered.
-   * (RootClass.find(arg)) => only RootClass instances matching the arg's where conditions get returned. 
-   *
-     * @template T
-     * @this {{ new(...args: any[]): T }}
-     * @param {FindObj<T>} findObj
-     * @returns {Promise<T[]>}
-     */
+  * Finds instances in the database that match the given argument.
+  * Relations do not get filtered by any where condition, only the root instances get filtered.
+  * (RootClass.find(arg)) => only RootClass instances matching the arg's where conditions get returned. 
+  *
+  * @template T
+  * @this {{ new(...args: any[]): T }}
+  * @param {FindObj<T>} findObj
+  * @returns {Promise<T[]>}
+  */
   static async find(findObj) {
     const { dbConnection, sqlClient, entities, classWikiDict } = OrmStore.store
     if (!dbConnection) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
@@ -91,6 +93,83 @@ export class Entity {
       : sqliteCreateProxyArray(queryResult, relationsScopeObj, entities, relationsArg, !!statementsObj.orderByStr)
 
     return instanceArr
+  }
+
+
+  /**
+  * Finds an instance with the provided `id`.
+  *
+  * - If the instance exists in the entity's in-memory map, it is returned immediately without a database call.
+  * - Otherwise, the instance is fetched from the database.
+  *
+  * @template T
+  * @this {{ new(...args: any[]): T }}
+  * @param {string | number | bigint} id - The unique identifier of the entity.
+  * @returns {Promise<T | undefined>} Resolves to the entity instance if found, otherwise `undefined`.
+  */
+  static async fetch(id) {
+    const className = this.constructor.name
+    const { entityMapsObj } = OrmStore.store
+
+    const entityMap = entityMapsObj[className] ??= new Map()
+    const mapResponse = searchEntityMap(id, [], entityMap)
+    if (mapResponse) return Promise.resolve(mapResponse[0])
+    const { sqlClient, dbConnection, entities, classWikiDict } = OrmStore.store
+    if (!classWikiDict) throw new Error("ORM is not initialized. Please call the appropriate ORM boot method before use.")
+    const classWiki = classWikiDict[className]
+    if (!classWiki) throw new Error(`Cannot fetch an instance of class '${className}' since it was not passed to the boot method.`)
+    let queryStr = `SELECT * FROM ${nonSnake2Snake(className)} WHERE id `
+
+    try {
+      let queryResult
+      if (sqlClient === "postgres") queryResult = (await dbConnection.query(queryStr + `$1`, [id])).rows
+      else {
+        queryResult = dbConnection.prepare(queryStr + `?`).all(id)
+      }
+      queryResult = queryResult[0]
+      const instanceClass = entities[className]
+      const instance = Object.create(instanceClass.prototype)
+      let uncalledRelationalProps = Object.keys(classWiki.junctions ?? {})
+      if (classWiki.parent) {
+        let currentParent = classWiki.parent
+        while (currentParent) {
+          uncalledRelationalProps = { ...uncalledRelationalProps, ...Object.keys(currentParent.junctions ?? {}) }
+          currentParent = currentParent.parent
+        }
+      }
+
+      for (const property of uncalledRelationalProps) {
+        let currentWiki = classWiki
+        while (!currentWiki.junctions[property]) currentWiki = currentWiki.parent
+        const uncalledJunctionObj = currentWiki.junctions[property] // this is a duplication from instanceProxy.js, search for uncalledJunctionObj
+        const nameOfMapWithJunction = uncalledJunctionObj.className // maybe no need to change until rework
+        const promiseType = uncalledJunctionObj.isArray ? nameOfMapWithJunction + `[]` : nameOfMapWithJunction
+        instance[property] = new LazyPromise(instance, property, promiseType, (resolve, reject) => promiseExecutor(instance, property, resolve, reject))
+      }
+
+      const proxy = proxifyEntityInstanceObj(instance, uncalledRelationalProps)
+      insertProxyIntoEntityMap(proxy, entityMap)
+      return proxy
+    }
+    catch (e) {
+      coloredBackgroundConsoleLog(`Fetch failed. ${e}\n`, `failure`)
+      return undefined
+    }
+  }
+
+  /**
+  * Get all instances from memory by accessing the corresponding Entity Map.
+  * @template T
+  * @this {{ new(...args: any[]): T }}
+  * @returns {T[]}
+  */
+  static getAllLoaded() {
+    const className = this.constructor.name
+    const { entityMapsObj } = OrmStore.store
+    const entityMap = entityMapsObj[className]
+    if (!entityMap) return []
+    const instances = [...entityMap.values()]
+    return instances
   }
 
   /**

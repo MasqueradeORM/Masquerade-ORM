@@ -25,7 +25,7 @@ export function rowObj2InstanceProxy(resultObj, findWiki, Entities) {
     const { entityMapsObj, sqlClient } = OrmStore.store
     if (!entityMapsObj[className]) entityMapsObj[className] = new Map()
     let entityMap = entityMapsObj[className]
-    const instanceOnLogger = searchEntityMap(resultObj, relationalProperties, entityMap)
+    const instanceOnLogger = searchEntityMap(resultObj.id, relationalProperties, entityMap)
 
     if (instanceOnLogger) {
         const [proxy, relationalProperties2Add] = instanceOnLogger
@@ -79,7 +79,7 @@ export function rowObj2InstanceProxy(resultObj, findWiki, Entities) {
     }
 }
 
-function promiseExecutor(target, key, resolve, reject) {
+export function promiseExecutor(target, key, resolve, reject) {
     if (ChangeLogger.scheduledFlush) ChangeLogger.save().then()
     const { sqlClient, dbConnection } = OrmStore.store
     const classWiki = OrmStore.getClassWiki(target)
@@ -428,9 +428,8 @@ export function proxifyEntityInstanceObj(instance, uncalledRelationalProperties)
 }
 
 
-export function searchEntityMap(resultObj, calledRelationalPropNamesArr, entityMap) {
+export function searchEntityMap(instanceId, calledRelationalPropNamesArr, entityMap) {
     //searches for the instance on the map and returns either false or returns an array containing the instance + the relational prop names to add as an arr
-    const instanceId = resultObj.id
     let proxyOnLogger = entityMap.get(instanceId)
     if (proxyOnLogger) {
         proxyOnLogger = proxyOnLogger.deref()

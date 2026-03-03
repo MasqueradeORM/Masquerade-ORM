@@ -19,6 +19,26 @@ export declare class Entity {
   ): Promise<T[]>
 
   /**
+  * Finds an instance with the provided id.
+  *
+  * - If the instance exists in the entity's in-memory map, it is returned immediately without a database call.
+  * - Otherwise, the instance is fetched from the database.
+  *
+  * @returns Resolves to the entity instance if found, otherwise `undefined`.
+  */
+  static fetch<T extends Entity>(
+    this: new (...args: any[]) => T,
+    id: string | number | bigint
+  ): Promise<T>
+
+  /**
+  * Get all instances from memory by accessing the corresponding Entity Map.
+  */
+  static getAllLoaded<T extends Entity>(
+    this: new (...args: any[]) => T
+  ): T[]
+
+  /**
   * Saves all changes made to the instance.
   * 
   * @throws {Error} If the save fails.

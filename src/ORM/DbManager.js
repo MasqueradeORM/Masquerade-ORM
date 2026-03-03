@@ -57,7 +57,7 @@ async function dropTables(tableNameArr) {
 function getQueryFunc(dropTables = true) {
     const { sqlClient, dbConnection } = OrmStore.store
     if (dropTables) {
-        const queryFunc = sqlClient === `postgresql`
+        const queryFunc = sqlClient === `postgres`
             ? async (junctionNameArr) => await dbConnection.query(`DROP TABLE IF EXISTS ${junctionNameArr.join(`, `)}`)
             : (junctionNameArr) => {
                 for (const junctionName of junctionNameArr) dbConnection.exec(`DROP TABLE IF EXISTS ${junctionName}`)
@@ -65,7 +65,7 @@ function getQueryFunc(dropTables = true) {
         return queryFunc
     }
 
-    const queryFunc = sqlClient === `postgresql`
+    const queryFunc = sqlClient === `postgres`
         ? dbConnection.query.bind(dbConnection)
         : dbConnection.exec.bind(dbConnection)
     return queryFunc
