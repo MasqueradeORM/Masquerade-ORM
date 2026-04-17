@@ -33,7 +33,7 @@ export function sqliteSaveQuery({
     if (deletedUnloadedRelations) {
         for (const [tableName, idObj] of Object.entries(deletedUnloadedRelations)) {
             const { idType, params: idArr } = idObj
-            const queryStr = `DELETE FROM ${tableName} WHERE joining_id IN (${idArr.map(id => `?`).join(`, `)})`
+            const queryStr = `DELETE FROM "${tableName}" WHERE joining_id IN (${idArr.map(id => `?`).join(`, `)})`
             if (!queryFuncWithTryCatch(queryStr, idArr)) throw (errMsg)
         }
     }
@@ -65,7 +65,7 @@ export function sqliteSaveQuery({
     if (deletedInstances) {
         for (const [tableName, deletedIds] of Object.entries(deletedInstances)) {
             const placeholders = deletedIds.map(id => `?`)
-            const queryStr = `DELETE FROM ${tableName} WHERE id IN (${placeholders.join(',')});`
+            const queryStr = `DELETE FROM "${tableName}" WHERE id IN (${placeholders.join(',')});`
             if (!queryFuncWithTryCatch(queryStr, deletedIds)) throw (errMsg)
         }
     }
@@ -121,7 +121,7 @@ export function junctionTableRemovalSqlite(removedIds, tableName) {
     let queryStr = ``
     const params = []
 
-    queryStr = `DELETE FROM ${snakedTableName} WHERE (joining_id, joined_id) IN (`
+    queryStr = `DELETE FROM "${snakedTableName}" WHERE (joining_id, joined_id) IN (`
     for (const idPairings of removedIds) {
         const baseId = idPairings[0]
         const nonBaseIds = idPairings[1]

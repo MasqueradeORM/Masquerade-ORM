@@ -3,8 +3,8 @@
 
 import type { UUID } from "crypto"
 import { Entity } from "../entity/entity"
-import { Alias, AND, OR } from "../entity/find/findArgFuncs"
-import { OrArray, AndArray, SqlWhereObj, LazyPromise } from "./classes"
+import { Alias, OR } from "../entity/find/findArgFuncs"
+import { OrArray, SqlTemplateObj, LazyPromise } from "./classes"
 
 type integer = number
 
@@ -97,19 +97,43 @@ type ValidColumnKeysArr<T> = {
 }[keyof T]
 
 
+// stops recursion on primitives, built-in value objects, functions, etc.
+type IsPlainObject<T> = T extends object
+  ? T extends Array<any>
+  ? false
+  : T extends Function
+  ? false
+  : T extends Date | RegExp | Map<any, any> | Set<any> | Promise<any> | Error | BigInt | Symbol
+  ? false
+  : true   // only true for { ... } literal-like objects
+  : false
+
+type DeepJsonPartial<T> =
+  T extends object
+  ? IsPlainObject<T> extends true
+  ? { [K in keyof T]?: DeepJsonPartial<T[K]> }
+  : T   // stop recursion and ignores Date, RegExp, Array<T>, etc
+  : T | SqlTemplateObj<T> | OrOptions<T>    // primitives stay as-is
+
+type OrOptions<T> = OrArray<
+| T
+| undefined
+>
+
+type WhereOptions<V> =
+  | V
+  | SqlTemplateObj<V>
+  | SqlArrowFn<Alias>
+  | null
+  | OrOptions<V>
 
 type ColumnProperties<T> = Partial<{
   [K in ValidColumnKeys<T>]:
-  | T[K]
-  | SqlWhereObj<T[K]>
-  | AndArray<
-    NonNullable<T[K]> | undefined | OrArray<NonNullable<T[K]> | undefined | SqlWhereObj<T[K]>>
-  >
-  | OrArray<
-    NonNullable<T[K]> | undefined | AndArray<NonNullable<T[K]> | undefined | SqlWhereObj<T[K]>>
-  >
-  | SqlArrowFn<Alias>
-  | null
+  NonNullable<T[K]> extends infer V
+  ? IsPlainObject<V> extends true
+  ? WhereOptions<DeepJsonPartial<V>>
+  : WhereOptions<V>
+  : never
 }>
 
 
@@ -117,19 +141,10 @@ type ColumnPropertiesArr<T> = Partial<{
   [K in ValidColumnKeysArr<T>]: NonNullable<T[K]> extends Array<infer C>
   ?
   | T[K]
-  | SqlWhereObj<T[K] | C>
-  | AndArray<
-    | NonNullable<T[K]>
-    | undefined
-    | OrArray<NonNullable<T[K]> | SqlWhereObj<T[K] | C> | undefined>
-  >
-  | OrArray<
-    | NonNullable<T[K]>
-    | undefined
-    | AndArray<NonNullable<T[K]> | SqlWhereObj<T[K] | C> | undefined>
-  >
+  | SqlTemplateObj<T[K] | Partial<C>>
   | SqlArrowFn<Alias>
   | null
+  | OrOptions<NonNullable<T[K]> | DeepJsonPartial<C>>
   : never
 }>
 
@@ -151,12 +166,12 @@ type WhereObj<T> = WhereProperties<T>
   }
 
 // ---------------------------------------------------------
-// 🔑SQL
+// ************ SQL ************
 // ---------------------------------------------------------
 
-type SqlArrowFn<T> = (AliasObj: AliasObj<T>) => SqlWhereObj<PrimitivesNoNull | AliasObj<T>>
+type SqlArrowFn<T> = (AliasObj: AliasObj<T>) => SqlTemplateObj<PrimitivesNoNull | AliasObj<T>>
 
-type templateSqlFn<T> = (AliasObj: AliasObj<T>) => SqlWhereObj<any>
+type templateSqlFn<T> = (AliasObj: AliasObj<T>) => SqlTemplateObj<any>
 
 type AliasObj<T> = T extends Entity
   ? AliasObjProperties<T> & AliasObjRelations<T>

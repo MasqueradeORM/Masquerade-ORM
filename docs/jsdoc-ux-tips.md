@@ -163,7 +163,8 @@ Copy the JSON below and save.
 Add the following lines to your `jsconfig.json` (or `tsconfig.json`) file:
 ```JSON
 "allowJs": true,
-"checkJs": true
+"checkJs": true,
+"noImplicitAny": true,
 ```
 
 
@@ -210,32 +211,33 @@ Add the following lines to your `jsconfig.json` (or `tsconfig.json`) file:
 import { Entity } from 'masquerade-orm'
 /**@typedef {import('masquerade-orm').Unique} Unique*/
 
+/**
+* @typedef {Object} UserMetadata
+* @property {boolean} twoFactorAuth
+* @property {Date} createdAt
+*/
+
 class User extends Entity {
     /**@type {string | Unique}*/ username
     /**@type {string | Unique}*/ email
     /**@type {string}*/ password
     /**@type {boolean}*/ isBanned = false
-    /**@satisfies {UserMetadata}*/ metadata = {
+    /**@type {UserMetadata & object}*/ metadata = {
         twoFactorAuth: false,
         createdAt: new Date()
     }
 
     constructor(
-	/**@type {string}*/ username, 
-	/**@type {string}*/ email, 
-	/**@type {string}*/ password) {
+	/**@type {string}*/ username,
+	/**@type {string}*/ email,
+	/**@type {string}*/ password
+    ) {
         super()
         this.username = username
         this.email = email
         this.password = password
     }
 }
-
-/**
-* @typedef {Object} UserMetadata
-* @property {boolean} twoFactorAuth
-* @property {Date} createdAt
-*/
 ```
 
 <h1 align="center">All done!</h1>

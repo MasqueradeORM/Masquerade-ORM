@@ -100,18 +100,18 @@ Translation: **“Find all chats that contain a message from a user with the id 
 - **Note:** The scope of the `where` condtions is agnostic to the scope of the `relations` (eager-loading).       
 It is completely safe to filter based on specific relations without having said relations passed into the `relations` field.      
 
-### Introduction to the `sql`, `OR` and `AND`  functions 
+### Introduction to the `sql` and `OR` functions 
 
 ```js
-import { sql, AND, OR } from "masquerade-orm"
+import { sql, OR } from "masquerade-orm"
 
 await Angel.find({
     where: {
-        // name is either "Micheal" OR "Gabriel"
+        // name is "Micheal" OR "Gabriel"
         name: OR('Micheal', 'Gabriel'),
 
-        // demonsSentToAbyss is greater than 12,000 AND less than 57,000
-        demonsSentToAbyss: AND(sql`> 12000`, sql`< 57000`)
+        // demonsSentToAbyss is greater than 5,700
+        demonsSentToAbyss: sql`> 5700`
     }
 })
 ```
@@ -120,11 +120,11 @@ await Angel.find({
 In the previous example, the `sql` function implicitly inserted a column identifier placeholder (`#`) on the left side of the SQL statement. 
 ```js
 // these two statements are equivalent
-sql`> 12000`  
-sql`# > 12000` 
+sql`> 5700`  
+sql`# > 5700` 
 ```
 
-In next example, `#` placeholders must be written explicitly because the SQL string uses `AND` conditional operators directly, rather than using the `AND()` helper function.
+In next example, `#` placeholders must be written explicitly because the SQL string uses `AND` conditional operators.
 
 ```js
 import { sql } from "masquerade-orm"
@@ -141,13 +141,9 @@ await User.find({
         createdAt: sql`${twoYearsAgo} <= # AND # <= ${oneYearAgo}` 
     }
 })
-// The ANDs are written directly inside the 'sql' string instead of 
-// having to rely on helper functions to achieve the same result. 
-// The 'sql' function gives you the ability to write powerful
-// 'WHERE' conditions in an easy-to-read and easy-to-write manner.
 ```
 
-<!-- **Equivalent Alternative Syntax:** 
+**Equivalent Alternative Syntax:** 
 ```js
 await User.find({
     where: {
@@ -155,7 +151,7 @@ await User.find({
         createdAt: (createdAt) => sql`${twoYearsAgo} <= ${createdAt} AND ${createdAt} <= ${oneYearAgo}` 
     }
 })
-``` -->
+```
 
 ### Using the `sql` function to create a `LIKE` `WHERE` condition 
 ```js
@@ -181,14 +177,17 @@ type OrderOverview = {
 }
 
 class Order extends Entity {
-  // other properties
-  overview: OrderOverview
+  overview: OrderOverview & object
   // other properties + constructor
 }
 
 const completedOrders = await Order.find({
   where:
-    { overview: sql`json_extract(#, '$.status') = 'completed'` }
+    { 
+        overview: {
+            status: 'completed'
+        } 
+    }
 })
 ```
 
@@ -231,16 +230,15 @@ The model we will use for the examples:
 import { Entity } from "masquerade-orm"
 
 type UserMetadata = {
-  roles: string[]          // e.g., ["admin", "moderator"]
+  roles: string[]          // e.g. ["admin", "moderator"]
   lastLogin?: string       // optional, ISO date string
-  preferences?: {
-    theme?: "light" | "dark"
-    notifications?: boolean
+  preferences: {
+    theme: "light" | "dark"
+    notifications: boolean
   }
 }
 
 class User extends Entity {
-  // other properties
   metadata: UserMetadata
   sessions: string[]
   // other properties + constructor

@@ -1,12 +1,12 @@
 // Copyright 2026 B.G (github.com/MasqueradeORM)
 // SPDX-License-Identifier: Apache-2.0
 
-import { nonSnake2Snake } from "../../misc/miscFunctions.js"
+import { getJunctionName, nonSnake2Snake } from "../../misc/miscFunctions.js"
 
 export function parentJoin(parentObj, parentAlias, childObj) {
     const childAlias = childObj.alias
     const parentName = nonSnake2Snake(parentObj.className_ ?? parentObj.className)
-    return `\nLEFT JOIN ${parentName} ${parentAlias} ON ${parentAlias}.id = ${childAlias}.id`
+    return `\nLEFT JOIN "${parentName}" ${parentAlias} ON ${parentAlias}.id = ${childAlias}.id`
 }
 
 export function junctionJoin(joinedTable, joinedTableAlias, baseTable, junctionPropertyName) {
@@ -14,11 +14,11 @@ export function junctionJoin(joinedTable, joinedTableAlias, baseTable, junctionP
     let baseTableAlias = baseTable.alias
     const joinedTableName = nonSnake2Snake(joinedTable.className_ ?? joinedTable.className)
 
-    const junctionName = `${baseTableName}___${nonSnake2Snake(junctionPropertyName)}_jt`
+    const junctionName = getJunctionName(baseTableName, nonSnake2Snake(junctionPropertyName))
     const junctionAlias = `jt_${baseTableAlias}_${joinedTableAlias}`
 
     let queryStr = `\nLEFT JOIN ${junctionName} ${junctionAlias} ON ${baseTableAlias}.id = ${junctionAlias}.joining_id `
-    queryStr += ` \nLEFT JOIN ${joinedTableName} ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.id \n`
+    queryStr += ` \nLEFT JOIN "${joinedTableName}" ${joinedTableAlias} ON ${junctionAlias}.joined_id = ${joinedTableAlias}.id \n`
 
     return queryStr
 }
@@ -29,7 +29,7 @@ export function junctionJoinCte(joinedTable, baseTable, junctionPropertyName, /*
     //const joinedTableName = nonSnake2Snake(joinedTable.className)
     const joinedTableAlias = joinedTable.alias
 
-    const junctionName = `${baseTableName}___${nonSnake2Snake(junctionPropertyName)}_jt`
+    const junctionName = getJunctionName(baseTableName, nonSnake2Snake(junctionPropertyName))
     const junctionAlias = `jt_${baseTableAlias}_${joinedTableAlias}`
 
     let queryStr = `\nLEFT JOIN ${junctionName} ${junctionAlias} ON ${baseTableAlias}.id = ${junctionAlias}.joining_id `
@@ -44,7 +44,7 @@ export function junctionJoinSelectedCte(joinedTable, baseTable, junctionProperty
     let baseTableAlias = baseTable.alias
     const joinedTableAlias = joinedTable.alias
 
-    const junctionName = `${baseTableName}___${nonSnake2Snake(junctionPropertyName)}_jt`
+    const junctionName = getJunctionName(baseTableName, nonSnake2Snake(junctionPropertyName))
     const junctionAlias = `jt_${baseTableAlias}_${joinedTableAlias}`
 
     let queryStr = `\nLEFT JOIN ${junctionName} ${junctionAlias} ON ${baseTableAlias}.${baseTableAlias}_id = ${junctionAlias}.joining_id `

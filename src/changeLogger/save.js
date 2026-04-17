@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { newEntityInstanceSymb } from "../misc/constants.js"
-import { coloredBackgroundConsoleLog, getPropertyClassification, jsValue2SqliteValue, nonSnake2Snake } from "../misc/miscFunctions.js"
+import { coloredBackgroundConsoleLog, getJunctionName, getPropertyClassification, jsValue2SqliteValue, nonSnake2Snake } from "../misc/miscFunctions.js"
 import { OrmStore } from "../misc/ormStore.js"
 import { junctionTableRemovalPostgres } from "./sqlClients/postgres.js"
 import { junctionTableRemovalSqlite } from "./sqlClients/sqlite.js"
@@ -78,19 +78,19 @@ function expandBuffer(arr, lengthAdded) {
    return arr
 }
 
-function passEntityColumns2AncestorMaps(id, instanceChangeObj, classWiki, cteMap, client) {
-   cteMap.tables ??= {}
-   const baseClassCteMap = cteMap.tables[classWiki.className] ??= {}
+function passEntityColumns2AncestorMaps(id, instanceChangeObj, classWiki, cteDict, client) {
+   cteDict.tables ??= {}
+   const baseClassCteMap = cteDict.tables[classWiki.className] ??= {}
    baseClassCteMap[id] = { id }
    let currentWiki = classWiki
    while (currentWiki.parent) {
-      const classCteMap = cteMap.tables[currentWiki.parent.className] ??= {}
+      const classCteMap = cteDict.tables[currentWiki.parent.className] ??= {}
       classCteMap[id] ??= { id }
       classCteMap[id][newEntityInstanceSymb] = instanceChangeObj[newEntityInstanceSymb]
       currentWiki = currentWiki.parent ?? currentWiki
    }
    const updatedAt = instanceChangeObj.updatedAt
-   cteMap.tables[currentWiki.className][id].updatedAt = client === "postgres" ? updatedAt : updatedAt.toISOString()
+   cteDict.tables[currentWiki.className][id].updatedAt = client === "postgres" ? updatedAt : updatedAt.toISOString()
 }
 
 export function handleRelationalChanges(tableName, tableChangesObj, queryObj, paramIndex, sqlClient) {
@@ -122,7 +122,7 @@ export function handleRelationalChanges(tableName, tableChangesObj, queryObj, pa
 
 function junctionTableInsertion(addedIds, tableName, joiningIdUnique, paramIndex, sqlClient) {
    const snakedTableName = nonSnake2Snake(tableName)
-   let queryStr = `INSERT INTO ${snakedTableName} (joining_id, joined_id) VALUES `
+   let queryStr = `INSERT INTO "${snakedTableName}" (joining_id, joined_id) VALUES `
    const params = []
    for (const [joiningId, joinedIds] of addedIds) {
       while (joinedIds.length) {
@@ -173,7 +173,7 @@ function insertNewRows(newRows, tableName, queryObj, paramIndex, client) {
 
    target.params = expandBuffer(target.params, newRows.length * columns.length)
    let i = 0
-   let queryStr = `INSERT INTO ${snakedTableName} (${columns.map(column => nonSnake2Snake(column)).join(', ')}) VALUES `
+   let queryStr = `INSERT INTO "${snakedTableName}" (${columns.map(column => nonSnake2Snake(column)).join(', ')}) VALUES `
 
    for (const instance of newRows) {
       if (client === "postgres") queryStr += `(${columns.map(column => `$${paramIndex++}`).join(', ')}), \n`
@@ -201,7 +201,7 @@ function updateRows(updatedRows, tableName, queryObj, paramIndex, client) {
       let queryStr = ``
       let params = []
 
-      queryStr += `UPDATE ${snakedTableName} SET `
+      queryStr += `UPDATE "${snakedTableName}" SET `
       for (const [columnName, val] of updatedColumns) {
          if (client === "postgres") queryStr += `${nonSnake2Snake(columnName)} = $${paramIndex++}, `
          else queryStr += `${nonSnake2Snake(columnName)} = ?, `
@@ -218,7 +218,7 @@ function updateRows(updatedRows, tableName, queryObj, paramIndex, client) {
    return paramIndex
 }
 
-export function organizeChangeObj(dbChanges, cteMap, client) {
+export function organizeChangeObj(dbChanges, cteDict, client) {
    const classNames = Object.keys(dbChanges)
 
    for (const className of classNames) {
@@ -229,7 +229,7 @@ export function organizeChangeObj(dbChanges, cteMap, client) {
          let properties = Object.keys(instanceChangeObj)
 
          if (classWiki.parent) {
-            passEntityColumns2AncestorMaps(instanceId, instanceChangeObj, classWiki, cteMap, client)
+            passEntityColumns2AncestorMaps(instanceId, instanceChangeObj, classWiki, cteDict, client)
             properties = properties.filter(prop => prop !== "id" && prop !== "updatedAt")
          }
 
@@ -244,38 +244,39 @@ export function organizeChangeObj(dbChanges, cteMap, client) {
                const remove = Object.keys(instanceChangeObj[property].remove)
                if (!add.length && !remove.length) continue
 
-               const junctionTableName = `${nonSnake2Snake(mapWithProp.className)}___${nonSnake2Snake(property)}_jt`
+               const junctionTableName = getJunctionName(nonSnake2Snake(mapWithProp.className), nonSnake2Snake(property))
+               
 
-               cteMap.junctions ??= {}
-               const tableCteMap = cteMap.junctions[junctionTableName] ??= {}
-               tableCteMap[idTypeSymb] = {
+               cteDict.junctions ??= {}
+               const tableLog = cteDict.junctions[junctionTableName] ??= {}
+               tableLog[idTypeSymb] = {
                   joinindIdType: mapWithProp.columns.id.type,
                   joinedIdType: columnType.columns.id.type,
                   joiningIdUnique: !columnType.isArray
                }
 
                if (add.length) {
-                  tableCteMap[instanceId] ??= {}
-                  tableCteMap[instanceId].add = instanceChangeObj[property].add
+                  tableLog[instanceId] ??= {}
+                  tableLog[instanceId].add = instanceChangeObj[property].add
                }
                if (remove.length) {
-                  tableCteMap[instanceId] ??= {}
-                  tableCteMap[instanceId].remove = instanceChangeObj[property].remove
+                  tableLog[instanceId] ??= {}
+                  tableLog[instanceId].remove = instanceChangeObj[property].remove
                }
             }
             else {
                const tableName = mapWithProp.className
-               cteMap.tables ??= {}
-               const tableCteMap = cteMap.tables[tableName] ??= {}
-               const entityInstanceMap = tableCteMap[instanceId] ??= {}
-               //tableCteMap[idTypeSymb] = [mapWithProp.columns.id.type, columnType.type]
+               cteDict.tables ??= {}
+               const tableLog = cteDict.tables[tableName] ??= {}
+               const instanceLog = tableLog[instanceId] ??= {}
+               //tableLog[idTypeSymb] = [mapWithProp.columns.id.type, columnType.type]
 
-               if (client === "postgres") entityInstanceMap[property] = instanceChangeObj[property]
+               if (client === "postgres") instanceLog[property] = instanceChangeObj[property]
                else {
                   const value = instanceChangeObj[property]
-                  entityInstanceMap[property] = jsValue2SqliteValue(value)
+                  instanceLog[property] = jsValue2SqliteValue(value)
                }
-               entityInstanceMap[newEntityInstanceSymb] = instanceChangeObj[newEntityInstanceSymb] ? true : false
+               instanceLog[newEntityInstanceSymb] = instanceChangeObj[newEntityInstanceSymb] ? true : false
             }
          }
       }

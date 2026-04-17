@@ -3,7 +3,7 @@
 
 
 import { createSourceFile, SyntaxKind, ScriptKind, ScriptTarget } from "typescript"
-import { js2SqlTyping, nonSnake2Snake, snake2Pascal, array2String, coloredBackgroundConsoleLog } from "../misc/miscFunctions.js"
+import { js2SqlTyping, nonSnake2Snake, snake2Pascal, array2String, coloredBackgroundConsoleLog, getJunctionName } from "../misc/miscFunctions.js"
 import { dependenciesSymb, floatColumnTypes, referencesSymb } from "../misc/constants.js"
 import { uuidv7 } from "uuidv7"
 import { DbManagerStore } from "../dbManager/DbManagerStore.js"
@@ -62,7 +62,7 @@ export async function compareAgainstDb(tablesDict) {
             for (const column of newColumns) {
                 const columnObj = tableObj.columns[column]
                 if (columnObj.relational) {
-                    const junctionTableName = `${tableName}___${nonSnake2Snake(columnObj.name)}_jt`
+                    const junctionTableName = getJunctionName(tableName, nonSnake2Snake(columnObj.name))
                     const index = dbTableNames.findIndex(dbTableName => dbTableName === junctionTableName)
                     if (index !== -1) {
                         dbTableNames.splice(index, 1)
@@ -85,7 +85,7 @@ export async function compareAgainstDb(tablesDict) {
         }
     }
     const unusedJunctions = dbTableNames.filter(tableName => tableName.includes(`___`) && tableName.endsWith(`_jt`))
-    const unusedTables = dbTableNames.filter(tableName => !unusedJunctions.includes(tableName))
+    const unusedTables = dbTableNames.filter(tableName => !unusedJunctions.includes(tableName)).map(tableName => `"${tableName}"`)
     if (unusedTables.length) {
         coloredBackgroundConsoleLog(`Warning: The following entity tables are unused: ${array2String(unusedTables)}. Consider removing them manually or using DbManager\`s 'dropUnusedTables' method.\n`, "warning")
         DbManagerStore.deleteTables = unusedTables
@@ -119,7 +119,7 @@ export async function getInitIdValues(tablesDict) {
             continue
         }
 
-        const queryStr = `SELECT id FROM ${tableName} ORDER BY id DESC LIMIT 1;`
+        const queryStr = `SELECT id FROM "${tableName}" ORDER BY id DESC LIMIT 1;`
         const res = await queryFuncWithTryCatch(queryStr)
         if (!res) {
             const idVal = idType === `number` ? 0 : 0n
@@ -207,7 +207,7 @@ export function handleSpecialClassSettingsObj(nodeInitializer) {
     return specialSettingsObj
 }
 
-export function parseTypeObjContext(/**@type {object | string}*/ typeObjOrString, columnObj, entityNamesArr, nonRelationalTypesArr, className, /**@type {string | undefined}*/ tagName, /**@type {string[] | undefined}*/ typeScriptInvalidTypeArr = undefined) {
+export function parseTypeObjContext(/**@type {object | string}*/ typeObjOrString, columnObj, entityNamesArr, nonRelationalTypesArr, className, /**@type {string[] | undefined}*/ invalidTypeArr = undefined) {
     /**@type {string}*/ let typeName = typeof typeObjOrString === `string` ? typeObjOrString.trim() : typeObjOrString.getText().trim()
     if (typeName.endsWith(`[]`)) {
         typeName = typeName.slice(0, -2)
@@ -219,35 +219,35 @@ export function parseTypeObjContext(/**@type {object | string}*/ typeObjOrString
             for (let type of separatedTypes) {
                 type = type.trim()
                 if (type === `undefined`) continue
-                else mapType2ValidMainType(type, columnObj, className, nonRelationalTypesArr, entityNamesArr, tagName, typeScriptInvalidTypeArr)
+                else mapType2ValidMainType(type, columnObj, className, nonRelationalTypesArr, entityNamesArr, invalidTypeArr)
             }
         }
-        else mapType2ValidMainType(typeName, columnObj, className, nonRelationalTypesArr, entityNamesArr, tagName, typeScriptInvalidTypeArr)
+        else mapType2ValidMainType(typeName, columnObj, className, nonRelationalTypesArr, entityNamesArr, invalidTypeArr)
     }
     else if (typeName === `undefined`) columnObj.nullable = true
     else if (typeName === `Unique`) columnObj.unique = true
-    else mapType2ValidMainType(typeName, columnObj, className, nonRelationalTypesArr, entityNamesArr, tagName, typeScriptInvalidTypeArr)
+    else mapType2ValidMainType(typeName, columnObj, className, nonRelationalTypesArr, entityNamesArr, invalidTypeArr)
 }
 
-export function mapType2ValidMainType(typeName, columnObj, className, nonRelationalTypesArr, entityNamesArr, tagName, typeScriptInvalidTypeArr) {
+export function mapType2ValidMainType(typeName, columnObj, className, nonRelationalTypesArr, entityNamesArr, invalidTypeArr) {
     if (nonRelationalTypesArr.includes(typeName)) assignColumnType(typeName, columnObj, className)
     else if (entityNamesArr.includes(typeName)) {
         columnObj.relational = true
         assignColumnType(typeName, columnObj, className)
     }
     else {
-        if (tagName === `satisfies`) assignColumnType(`object`, columnObj, className)
-        else {
-            if (typeScriptInvalidTypeArr) {
-                if (typeName.includes('object')) assignColumnType('object', columnObj, className)
-                typeScriptInvalidTypeArr.push(typeName)
-            }
-            else {
-                console.error(`\nInvalid typing error on property '${columnObj.name}' of class ${snake2Pascal(className)} - ${typeName} is not a valid main type.\n`
-                    + `Valid main types are ${array2String([...nonRelationalTypesArr, ...entityNamesArr])}.`)
-                process.exit(1)
-            }
-        }
+        // if (tagName === `satisfies`) assignColumnType(`object`, columnObj, className)
+        // else {
+        // if (invalidTypeArr) {
+        if (typeName.includes('object') || typeName.includes('Record')) assignColumnType('object', columnObj, className)
+        invalidTypeArr.push(typeName)
+        // }
+        // else {
+        //     console.error(`\nInvalid typing error on property '${columnObj.name}' of class ${snake2Pascal(className)} - ${typeName} is not a valid main type.\n`
+        //         + `Valid main types are ${array2String([...nonRelationalTypesArr, ...entityNamesArr])}.`)
+        //     process.exit(1)
+        // }
+        // }
     }
 }
 
@@ -279,8 +279,8 @@ export function fillClassObjColumns(classObj, entityNamesArr) {
                 }
             }
 
-            if ((node.name.expression && node.name.expression.escapedText === "ormClassSettings_") || (node.name.escapedText === "ormClassSettings_")) {
-                propertyName = "ormClassSettings_"
+            if ((node.name.expression && node.name.expression.escapedText === "$ormClassSettings") || (node.name.escapedText === "$ormClassSettings")) {
+                propertyName = "$ormClassSettings"
 
                 if (!isStatic) {
                     console.error(`\nProperty '${propertyName}' of class ${snake2Pascal(classObj.name)} needs to be a static property.`)
@@ -295,13 +295,13 @@ export function fillClassObjColumns(classObj, entityNamesArr) {
             else {
                 if (isStatic) continue
 
-                const typeScriptInvalidTypesArr = []
+                const invalidTypesArr = []
                 propertyName = node.name.escapedText
                 columnObj = { name: propertyName }
 
                 if (node.jsDoc) {
                     const tagObj = node.jsDoc[0].tags[0]
-                    const tagName = tagObj.tagName ? tagObj.tagName.escapedText : undefined
+                    // const tagName = tagObj.tagName ? tagObj.tagName.escapedText : undefined
                     const typeObj = tagObj.typeExpression.type
                     if (typeObj.types) {
                         if (typeObj.types.length > 3) {
@@ -309,9 +309,9 @@ export function fillClassObjColumns(classObj, entityNamesArr) {
                             process.exit(1)
                         }
                         const typesObj = typeObj.types
-                        for (const typeObj of typesObj) parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, tagName)
+                        for (const typeObj of typesObj) parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, invalidTypesArr)
                     }
-                    else parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, tagName)
+                    else parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, invalidTypesArr)
                 }
                 else if (node.type) {
                     const typeObj = node.type
@@ -321,16 +321,16 @@ export function fillClassObjColumns(classObj, entityNamesArr) {
                             process.exit(1)
                         }
                         const typesObj = typeObj.types
-                        for (const typeObj of typesObj) parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, undefined, typeScriptInvalidTypesArr)
+                        for (const typeObj of typesObj) parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, invalidTypesArr)
                     }
-                    else parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, undefined, typeScriptInvalidTypesArr)
+                    else parseTypeObjContext(typeObj, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, invalidTypesArr)
                 }
-                else if (node.initializer.kind === SyntaxKind.SatisfiesExpression) {
-                    const typeObj = node.initializer
-                    const satisfiesText = typeObj.getText()
-                    const typeText = satisfiesText.split(`satisfies`)[1]
-                    parseTypeObjContext(typeText, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, `satisfies`, typeScriptInvalidTypesArr)
-                }
+                // else if (node.initializer.kind === SyntaxKind.SatisfiesExpression) {
+                //     const typeObj = node.initializer
+                //     const satisfiesText = typeObj.getText()
+                //     const typeText = satisfiesText.split(`satisfies`)[1]
+                //     parseTypeObjContext(typeText, columnObj, entityNamesArr, nonRelationalTypesArr, classObj.name, `satisfies`, invalidTypesArr)
+                // }
                 else {
                     console.error(`\nInvalid typing error on property '${propertyName}' of class ${snake2Pascal(classObj.name)} - property has no typing.`)
                     process.exit(1)
@@ -338,16 +338,16 @@ export function fillClassObjColumns(classObj, entityNamesArr) {
 
                 if (node.questionToken) columnObj.nullable = true
 
-                if (!columnObj.type) noMainTypeOnColumnObjErr(propertyName, classObj, typeScriptInvalidTypesArr, [...nonRelationalTypesArr, ...entityNamesArr])
+                if (!columnObj.type) noMainTypeOnColumnObjErr(propertyName, classObj, invalidTypesArr, [...nonRelationalTypesArr, ...entityNamesArr])
                 else classObj.columns.push(columnObj)
             }
         }
     }
 }
 
-export function noMainTypeOnColumnObjErr(propertyName, classObj, typeScriptInvalidTypesArr, validMainTypesArr) {
+export function noMainTypeOnColumnObjErr(propertyName, classObj, invalidTypesArr, validMainTypesArr) {
     console.error(`\nInvalid typing error on property '${propertyName}' of class ${snake2Pascal(classObj.name)} - property has no main type.`)
-    if (typeScriptInvalidTypesArr.length) console.error(`\nThe types ${array2String(typeScriptInvalidTypesArr)} may need to be paired with a main type from the following ${array2String(validMainTypesArr)} .`)
+    if (invalidTypesArr.length) console.error(`\nThe types ${array2String(invalidTypesArr)} may need to be paired with a main type from the following ${array2String(validMainTypesArr)} .`)
     process.exit(1)
 }
 
@@ -548,7 +548,7 @@ export function createJunctionColumnContext(tablesDict) {
 
 function formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient) {
     const newJunctionTable = {
-        name: `${tableObj.name}___${nonSnake2Snake(columnObj.name)}_jt`,
+        name: getJunctionName(tableObj.name, nonSnake2Snake(columnObj.name)),
         columns: {}
     }
     const joiningIdTypeInDb = js2SqlTyping(sqlClient, tableObj.columns.id.type, true)
@@ -609,7 +609,7 @@ export function formatForCreation(tablesDict) {
     return [formattedTables, alterTableArr]
 }
 export function produceTableCreationQuery(/**@type {TABLE}*/ table, /**@type {boolean}*/ isJunction = false) {
-    let query = `CREATE TABLE ${table.name} (`
+    let query = `CREATE TABLE "${table.name}" (`
 
     if (!isJunction) {
         const primaryKeyType = table.columns.id.type
@@ -618,7 +618,7 @@ export function produceTableCreationQuery(/**@type {TABLE}*/ table, /**@type {bo
         const columnEntries = Object.entries(table.columns).filter(column => column[0] !== "id")
         query += columnEntries2QueryStr(columnEntries)
 
-        if (table.parent) query += `FOREIGN KEY (id) REFERENCES ${table.parent}(id) ON DELETE CASCADE);`
+        if (table.parent) query += `FOREIGN KEY (id) REFERENCES "${table.parent}"(id) ON DELETE CASCADE);`
         else query = query.slice(0, -3) + `);`
     }
     else {
@@ -635,15 +635,15 @@ export function produceTableCreationQuery(/**@type {TABLE}*/ table, /**@type {bo
         }
 
         let joiningIdStr = `joining_id ${baseColumn.type}`
-        let joinedIdStr = `joined_id ${referencedColumn.type} NOT NULL REFERENCES ${referencedColumn.ref}(id) ON DELETE CASCADE`
-        
-        if (baseColumn.unique) joiningIdStr += ` PRIMARY KEY REFERENCES ${baseColumn.ref}(id) ON DELETE CASCADE`
+        let joinedIdStr = `joined_id ${referencedColumn.type} NOT NULL REFERENCES "${referencedColumn.ref}"(id) ON DELETE CASCADE`
+
+        if (baseColumn.unique) joiningIdStr += ` PRIMARY KEY REFERENCES "${baseColumn.ref}"(id) ON DELETE CASCADE`
         else {
-            joiningIdStr += ` NOT NULL REFERENCES ${baseColumn.ref}(id) ON DELETE CASCADE`
+            joiningIdStr += ` NOT NULL REFERENCES "${baseColumn.ref}"(id) ON DELETE CASCADE`
             joinedIdStr += `, PRIMARY KEY (joining_id, joined_id)`
         }
 
-       query += `${joiningIdStr}, ${joinedIdStr}); CREATE INDEX idx_${table.name}_joined_id ON ${table.name} (joined_id);`
+        query += `${joiningIdStr}, ${joinedIdStr}); CREATE INDEX idx_${table.name}_joined_id ON ${table.name} (joined_id);`
     }
     return query
 }
@@ -847,15 +847,24 @@ export async function alterTables(tables2alterArr) {
     const queryFunc = sqlClient === `postgres`
         ? async (alterStatements, junctionStatements) => {
             try {
-                if (alterStatements.length) await dbConnection.query(alterStatements.join(`, `))
-                if (junctionStatements.length) {
-                    await dbConnection.query('BEGIN;')
+                // await dbConnection.query('BEGIN;')
+                // if (alterStatements.length) await dbConnection.query(alterStatements.join(`, `))
+                // if (junctionStatements.length) {
+                //     await dbConnection.query('BEGIN;')
+                //     for (const statement of junctionStatements) await dbConnection.query(statement)
+                //     await dbConnection.query('COMMIT;')
+                // }
+                await dbConnection.query('BEGIN;')
+                if (alterStatements.length)
+                    for (const statement of alterStatements) await dbConnection.query(statement)
+                if (junctionStatements.length)
                     for (const statement of junctionStatements) await dbConnection.query(statement)
-                    await dbConnection.query('COMMIT;')
-                }
+
+                await dbConnection.query('COMMIT;')
             }
             catch (e) {
-                if (junctionStatements.length) await dbConnection.query('ROLLBACK;')
+                // if (junctionStatements.length) 
+                await dbConnection.query('ROLLBACK;')
                 coloredBackgroundConsoleLog(e, "failure")
             }
         }
@@ -879,7 +888,7 @@ export async function alterTables(tables2alterArr) {
     const newJunctionStatements = []
 
     for (const tableObj of tables2alterArr) {
-        alterTableStr = `ALTER TABLE ${tableObj.name} `
+        alterTableStr = `ALTER TABLE "${tableObj.name}" `
         const idColumn = tableObj.columns.id
         tableObj.columns = structuredClone(tableObj.newColumns)
         sqlTypeTableObj(tableObj, sqlClient)
@@ -895,7 +904,7 @@ export async function alterTables(tables2alterArr) {
                 newJunctionStatements.push(statement)
             }
             else {
-                statement = `ADD COLUMN ${nonSnake2Snake(columnName)} ${tableObj.columns[columnName].type} `
+                statement = `ADD COLUMN "${nonSnake2Snake(columnName)}" ${tableObj.columns[columnName].type} `
                 if (!nullable) statement += `NOT NULL DEFAULT ${type2DefaultValue(type, isArray, sqlClient)}`
                 alterStatements.push(alterTableStr + statement)
             }

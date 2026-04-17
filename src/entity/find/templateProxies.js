@@ -27,12 +27,13 @@ export function templateFuncs2Statements(
     queryStr = ''
 ) {
     const templateResObj = templateFunc(templateAliasObj)
-     /**@type {parsedTemplateObj}*/ const returnedObj = { statement: '', params: [] }
+    /**@type {parsedTemplateObj}*/ const returnedObj = { statement: '', params: [] }
+    const {__strings__: strings, __params__: params} = templateResObj
     if (paramIndex === undefined) paramIndex = 1
-    while (templateResObj.params.length + templateResObj.strings.length > 0) {
-        if (templateResObj.strings.length) queryStr += templateResObj.strings.shift()
-        if (templateResObj.params.length) {
-            const param = templateResObj.params.shift()
+    while (strings.length + params.length > 0) {
+        if (strings.length) queryStr += strings.shift()
+        if (params.length) {
+            const param = params.shift()
             if (param instanceof Alias) {
                 if (param[aliasSymb] === `_InvalidPlaceholder_`) throw new Error(param.errMsg)
                 else queryStr += param[aliasSymb]
@@ -132,11 +133,12 @@ export function createTemplateProxy(scopeObj, classWiki) {
 }
 
 export function findPropOnProxy(scopeObj, key, classWiki) {
+    scopeObj.junctions_ ??= {}
     if (scopeObj.uncalledJunctions_[key]) {
         const relation = scopeObj.uncalledJunctions_[key]
         const formattedRelationObj = classWiki2ScopeObj(relation)
         removeRelationFromUnusedRelations(scopeObj, key)
-        const proxyRelations = scopeObj.junctions_ ??= {}
+        const proxyRelations = scopeObj.junctions_
         proxyRelations[key] = createTemplateProxy(formattedRelationObj, classWiki.junctions[key])
         return proxyRelations[key]
     }

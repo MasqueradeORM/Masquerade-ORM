@@ -1,28 +1,37 @@
 // Copyright 2026 B.G (github.com/MasqueradeORM)
 // SPDX-License-Identifier: Apache-2.0
 
-import { nonSnake2Snake, postgres2JsTyping, snake2Pascal } from "../../../misc/miscFunctions.js"
+import { getJunctionName, nonSnake2Snake, snake2Pascal } from "../../../misc/miscFunctions.js"
 import { rowObj2InstanceProxy } from "../../../proxies/instanceProxy.js"
 import { createNonRelationalArrayProxy } from "../../../proxies/nonRelationalArrayProxy.js"
 import { createObjectProxy } from "../../../proxies/objectProxy.js"
 import { findColumnObjOnWiki } from "../find.js"
 import { junctionJoinCte, junctionJoinSelectedCte, parentJoin } from "../joins.js"
 
-export function postgresCreateProxyArray(queryResult, scopeObj, entitiesFuncArr, hadEagerLoading) {
+
+export function postgres2JsTyping(value, columnTypeObj) {
+    if (value == null) return undefined
+    const type = columnTypeObj.type
+    if (type === 'bigint') return BigInt(value)
+    else return value
+}
+
+
+export function postgresCreateProxyArray(queryResult, classWiki, entitiesFuncArr, hadEagerLoading) {
     if (!queryResult || queryResult.length === 0) return []
 
     const proxyArr = []
     for (const row of queryResult) {
         let resultObj = hadEagerLoading ? row.json : row
         if (!hadEagerLoading) {
-            const chars2delete = scopeObj.alias.length + 1
+            const chars2delete = classWiki.alias.length + 1
             for (const key of Object.keys(row)) {
                 const newKey = snake2Pascal(key.slice(chars2delete), true)
                 row[newKey] = row[key]
                 delete row[key]
             }
         }
-        const filledInstance = rowObj2InstanceProxy(resultObj, scopeObj, entitiesFuncArr)
+        const filledInstance = rowObj2InstanceProxy(resultObj, classWiki, entitiesFuncArr)
         proxyArr.push(filledInstance)
     }
     return proxyArr
@@ -90,7 +99,7 @@ export function eagerLoadCTEsPostgres(findWiki, cteArr2d = [], orderBy = false, 
     else {
         const isArray = findWiki.isArray
         cteStr += `${baseAlias}_cte AS (SELECT ${baseAlias}.id, `
-        fromStatement += ` FROM ${nonSnake2Snake(findWiki.className)} ${baseAlias} `
+        fromStatement += ` FROM "${nonSnake2Snake(findWiki.className)}" ${baseAlias} `
 
         let jsonBuildStatementsStr = ``
         joinsJsonBuildStatements =
@@ -151,7 +160,7 @@ function one2ManyPostgresBridgeCte(baseTable, joinedTable, propertyName) {
     const baseNameSnaked = nonSnake2Snake(baseTable.className)
     const baseAlias = baseTable.alias
     const joinedAlias = joinedTable.alias
-    const junctionName = `${baseNameSnaked}___${nonSnake2Snake(propertyName)}_jt`
+    const junctionName = getJunctionName(baseNameSnaked, nonSnake2Snake(propertyName))
     const junctionAlias = `jt_${baseAlias}_${joinedAlias}`
     const cteAlias = baseAlias + joinedAlias + `_cte`
 
@@ -164,14 +173,14 @@ function one2ManyPostgresBridgeCte(baseTable, joinedTable, propertyName) {
 }
 
 
-export function postgresDbValHandling(instance, propertyName, value, scopeObj) {
+export function postgresDbValHandling(instance, propertyName, value, classWiki) {
     const valType = Array.isArray(value) ? `array` : value instanceof Date ? `date` : typeof value
     if (valType === `array`) {
-        const isArrayOfObjects = findColumnObjOnWiki(propertyName, scopeObj).type === `object`
+        const isArrayOfObjects = findColumnObjOnWiki(propertyName, classWiki).type === `object`
         instance[propertyName] = createNonRelationalArrayProxy(instance, propertyName, value.map(el => el === null ? undefined : el), undefined, isArrayOfObjects)
     }
     else if (valType === `object`) instance[propertyName] = createObjectProxy(instance, propertyName, value)
-    else if (valType === `string`) instance[propertyName] = postgres2JsTyping(value, findColumnObjOnWiki(propertyName, scopeObj))
+    else if (valType === `string`) instance[propertyName] = postgres2JsTyping(value, findColumnObjOnWiki(propertyName, classWiki))
     else instance[propertyName] = value
 }
 
@@ -184,5 +193,5 @@ export function offsetPlaceholders(queryStr, offsetInt) {
 
 
 export function offsetStatementsPlaceholders(statements, offsetInt) {
-    return statements.map(statement => offsetPlaceholders(statement, offsetInt)) 
+    return statements.map(statement => offsetPlaceholders(statement, offsetInt))
 }

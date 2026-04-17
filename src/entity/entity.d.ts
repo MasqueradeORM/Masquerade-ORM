@@ -41,9 +41,9 @@ export declare class Entity {
   /**
   * Saves all changes made to the instance.
   * 
-  * @throws {Error} If the save fails.
+  * @throws {Error} if the save fails.
   */
-  save(): void
+  save(): Promise<void>
 
   /**
   * Hard deletes the instance from the database. May require a pre-deletion step - the 'getDependents' method.
@@ -61,10 +61,16 @@ export declare class Entity {
   getDependents(): Promise<DependentsDict | undefined>
 
   /**
-   * Finds all instances that have a relation with the calling instance,
-   * This method is a superset of the getDependents method, and is not meant as a pre-deletion step, but as a utility.
-   */
+  * Finds all instances that have a relation with the calling instance,
+  * This method is a superset of the getDependents method, and is not meant as a pre-deletion step, but as a utility.
+  */
   getReferencers(): Promise<DependentsDict | undefined>
+
+
+  /**
+  * Discards unsaved changes from the save queue and syncs the instance with the database state.
+  */
+  fetchDbState(): Promise<void>
 }
 
 

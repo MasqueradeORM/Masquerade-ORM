@@ -9,7 +9,7 @@ export function classWiki2ScopeObj(classWiki) {
     const scopeProxy = {
         className_: classWiki.className ?? classWiki.className_,
         columns_: classWiki.columns ?? classWiki.columns_,
-        uncalledJunctions_: classWiki.junctions ?? classWiki.junctions_,
+        uncalledJunctions_: classWiki.junctions ?? classWiki.junctions_ ?? {},
     }
     if (classWiki.isArray || classWiki.isArray_) scopeProxy.isArray_ = true
     if (classWiki.optional || classWiki.optional_) scopeProxy.optional_ = true

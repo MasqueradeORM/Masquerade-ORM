@@ -53,7 +53,7 @@ function generateFlatFilteredCte(findWiki, joinStatements, statementsObj, sqlCli
     const idRefStr = `${alias}.id`
     queryStr += aggregate ? `${idRefStr}` : `DISTINCT ${idRefStr}`
     if (orderByStr) queryStr += orderByStr
-    queryStr += ` FROM ${nonSnake2Snake(className)} ${alias} `
+    queryStr += ` FROM "${nonSnake2Snake(className)}" ${alias} `
     if (joinStatements.length) queryStr += joinStatements.join(` `) + ` `
     if (whereStr) queryStr += whereStr
     if (aggregate) queryStr += ` GROUP BY ${idRefStr}`
@@ -104,7 +104,7 @@ function generateRootCte(findWiki, columnObj, aliasBase = 'b') {
     if (columnObj.limit || columnObj.offset) selectFrom = `pagination_cte`
     else selectFrom = `root_ids`
 
-    let cteStr = `root_cte AS (SELECT ${columnNamingStr.slice(0, -2)} FROM ${selectFrom} r JOIN ${nonSnake2Snake(findWiki.className)} ${aliasBase}1 ON ${aliasBase}1.id = r.id`
+    let cteStr = `root_cte AS (SELECT ${columnNamingStr.slice(0, -2)} FROM ${selectFrom} r JOIN "${nonSnake2Snake(findWiki.className)}" ${aliasBase}1 ON ${aliasBase}1.id = r.id`
     if (findWiki.parent) return cteStr + ` ` + joinStatements.join(` `) + `)`
     else return cteStr + `)`
 }

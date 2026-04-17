@@ -22,18 +22,15 @@ class ExampleClass extends Entity {
     float: number = 15.7
 
     // Allowed
-    stringArrWithUndefineds: (string | undefined)[] = [
-        'hello', 'world' , undefined
-        ]
+    stringArrWithUndefineds: (string | undefined)[] = 
+        ['hello', 'world', undefined]
 
-    // Can use `satisfies` instead
     json: MyJSON & object = {
         booleanField: false,
         stringArr: ['a', 'b', 'c'],
         nestedObj: {}
     }
 
-    // Can use `satisfies` instead
     jsonArr: (MyJSON & object)[] = [
         {
             booleanField: false,
@@ -63,23 +60,23 @@ class ExampleClass extends Entity {
     /**@type {number}*/ float = 15.7
 
     // Allowed
-    /**@type { (string | undefined)[] }*/ stringArrWithUndefineds = [
-        'hello', 'world' , undefined
-        ]
+    /**@type { (string | undefined)[] }*/ stringArrWithUndefineds = 
+        ['hello', 'world', undefined]
 
-    // MUST use 'satisfies'
-    /**@satisfies {MyJSON}*/ json = {
+    /**@type {MyJSON & object}*/ json = {
         booleanField: false,
         stringArr: ['a', 'b', 'c']
         nestedObj: {}
     }
 
-    // MUST use 'satisfies'
-    /**@satisfies {MyJSON[]}*/ jsonArr = [{
+    /**@type {(MyJSON & object)[]}*/ jsonArr = [{
         booleanField: false,
         stringArr: ['a', 'b', 'c'],
         nestedObj: {}
     }]
+
+    // If IntelliSense is not working properly for properties with 
+    // typing like in the last two examples, try using 'satisfies' instead of 'type'.
 }
 ```
 
@@ -120,8 +117,8 @@ Both approaches will allow for proper detection and persisting of such changes.
 import { Entity } from 'masquerade-orm'
 
 class ClassA extends Entity {
-    // to avoid bugs put 'ormClassSettings_' as the first property.
-    static ormClassSettings_ = {idType: 'INT'} // | 'UUID' | 'BIGINT'
+    // to avoid bugs put '$ormClassSettings' as the first property.
+    static $ormClassSettings = {idType: 'INT'} // | 'UUID' | 'BIGINT'
     // properties and constructor
 }
 ``` 
@@ -138,11 +135,11 @@ class ClassA extends Entity {
 }
 
 class ClassB extends ClassA {
-    static ormClassSettings_ = {idType: 'INT'}
+    static $ormClassSettings = {idType: 'INT'}
     // properties and constructor
 }
 ```
-In the example above, `idType` has no effect because `ClassB` does not extend `Entity`. If `static ormClassSettings_ = {idType: 'INT'}` was instead on `ClassA`, `ClassA` and  its descendants would have an id-type of `integer`.
+In the example above, `idType` has no effect because `ClassB` does not extend `Entity`. If `static $ormClassSettings = {idType: 'INT'}` was instead on `ClassA`, `ClassA` and  its descendants would have an id-type of `integer`.
 
 At the moment, this is the only class setting supported, but it may evolve in the future.
 

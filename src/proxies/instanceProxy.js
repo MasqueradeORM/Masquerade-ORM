@@ -9,7 +9,7 @@ import { postgresDbValHandling } from '../entity/find/sqlClients/postgresFuncs.j
 import { sqliteDbValHandling } from '../entity/find/sqlClients/sqliteFuncs.js'
 import { LazyPromise } from '../misc/classes.js'
 import { FinalizationRegistrySymb, ORM } from '../ORM/ORM.js'
-import { coloredBackgroundConsoleLog, getPropertyClassification, js2SqlTyping, nonSnake2Snake, postgres2sqliteQueryStr, snake2Pascal } from '../misc/miscFunctions.js'
+import { coloredBackgroundConsoleLog, getJunctionName, getPropertyClassification, js2SqlTyping, nonSnake2Snake, snake2Pascal } from '../misc/miscFunctions.js'
 import { createNonRelationalArrayProxy } from './nonRelationalArrayProxy.js'
 import { createObjectProxy } from './objectProxy.js'
 import { createRelationalArrayProxy } from './relationalArrayProxy.js'
@@ -73,7 +73,7 @@ export function rowObj2InstanceProxy(resultObj, findWiki, Entities) {
             }
         }
 
-        const proxy = proxifyEntityInstanceObj(instance, uncalledRelationalProperties)
+        const proxy = proxifyEntityInstance(instance, uncalledRelationalProperties)
         insertProxyIntoEntityMap(proxy, entityMap)
         return proxy
     }
@@ -81,18 +81,17 @@ export function rowObj2InstanceProxy(resultObj, findWiki, Entities) {
 
 export function promiseExecutor(target, key, resolve, reject) {
     if (ChangeLogger.scheduledFlush) ChangeLogger.save().then()
-    const { sqlClient, dbConnection } = OrmStore.store
+    const { sqlClient, dbConnection, entities } = OrmStore.store
     const classWiki = OrmStore.getClassWiki(target)
     const [classification, joinedClassWiki, mapWithProp] = getPropertyClassification(key, classWiki)
     const isArrayOfInstances = joinedClassWiki.isArray
+    const junctionName = getJunctionName(nonSnake2Snake(mapWithProp.className), nonSnake2Snake(key))
+    const queryStr = `SELECT entity.* FROM ${junctionName} jt` +
+        ` LEFT JOIN "${nonSnake2Snake(joinedClassWiki.className)}" entity ON jt.joined_id = entity.id WHERE jt.joining_id = `
 
-    let queryStr = `SELECT entity.* FROM ${nonSnake2Snake(mapWithProp.className)}___${nonSnake2Snake(key)}_jt jt` +
-        ` LEFT JOIN ${nonSnake2Snake(joinedClassWiki.className)} entity ON jt.joined_id = entity.id WHERE jt.joining_id = `
-    queryStr += sqlClient === "postgres" ? `$1` : `?`
-
-    let queryFunc
-    if (sqlClient === "postgres") queryFunc = (queryStr, id) => dbConnection.query(queryStr, [id])
-    else queryFunc = (queryStr, id) => dbConnection.prepare(queryStr).all(id)
+    const queryFunc = sqlClient === "postgres"
+    ? (queryStr, id) => dbConnection.query(queryStr + `$1`, [id])
+    : (queryStr, id) => dbConnection.prepare(queryStr + `?`).all(id)
 
     try {
         Promise.resolve(queryFunc(queryStr, target.id))
@@ -100,21 +99,21 @@ export function promiseExecutor(target, key, resolve, reject) {
                 const { className, columns, junctions } = joinedClassWiki
                 const findWiki = { className, columns, uncalledJunctions: junctions }
                 let currentWiki = joinedClassWiki
-                let currentScopedMap = findWiki
-                while (currentWiki.parent) {
+                let currentScopedWiki = findWiki
+                while (currentWiki.parent) { // copying and naming junctions uncalledJunctions
                     const { className, columns, junctions } = currentWiki.parent
-                    currentScopedMap.parent = { className, columns, uncalledJunctions: junctions }
-                    currentScopedMap = currentScopedMap.parent
+                    currentScopedWiki.parent = { className, columns, uncalledJunctions: junctions }
+                    currentScopedWiki = currentScopedWiki.parent
                     currentWiki = currentWiki.parent
                 }
 
                 const proxyArr = []
                 for (const row of rows) {
                     const rowWithCamelCasedProps = Object.fromEntries(Object.entries(row).map(([key, val]) => [snake2Pascal(key, true), val]))
-                    proxyArr.push(rowObj2InstanceProxy(rowWithCamelCasedProps, findWiki, OrmStore.store.entities))
+                    proxyArr.push(rowObj2InstanceProxy(rowWithCamelCasedProps, findWiki, entities))
                 }
 
-                if (isArrayOfInstances) target[key] = createRelationalArrayProxy(target, key, proxyArr, classWiki.className)
+                if (isArrayOfInstances) target[key] = createRelationalArrayProxy(target, key, proxyArr)
                 else target[key] = proxyArr[0]
 
                 resolve(target[key])
@@ -134,7 +133,7 @@ export function insertProxyIntoEntityMap(proxy, entityMap) {
 
 export function instanceProxySetHandler(target, key, value, eventListenersObj, classWiki) {
     const { dbChangesObj } = OrmStore.store
-    let oldValue = target[key]
+    const oldValue = target[key]
     if (oldValue === value) return
     if (value === null) value = undefined
     const entityClass = target.constructor.name
@@ -185,7 +184,7 @@ export function instanceProxySetHandler(target, key, value, eventListenersObj, c
         if (!isValid) return
 
         if (isArray) {
-            const newArray = createRelationalArrayProxy(target, key, value, expectedValType) // includes only valid data
+            const newArray = createRelationalArrayProxy(target, key, value, expectedValType) // cleans up invalid data
             if (value !== undefined) target[key] = newArray
             const oldIds = oldValue === undefined ? [] : oldValue.map(entity => entity.id)
             const newIds = newArray.map(entity => entity.id) // always an array
@@ -346,7 +345,7 @@ export function uncalledPropertySetHandler(target, key, value, columnClassificat
         return
     }
 
-    const junctionTableName = `${nonSnake2Snake(nameOfClassWithProp)}___${nonSnake2Snake(key)}_jt`
+    const junctionTableName = getJunctionName(nonSnake2Snake(nameOfClassWithProp), nonSnake2Snake(key))
     const idType = js2SqlTyping(sqlClient, mapWithProp.columns.id.type)
 
     const uncalledPropChangeObj = dbChangesObj.$deletedUnloadedRelations ??= {}
@@ -375,7 +374,7 @@ export function getCategorizedClassProperties(classWiki) {
 }
 
 
-export function proxifyEntityInstanceObj(instance, uncalledRelationalProperties) {
+export function proxifyEntityInstance(instance, uncalledRelationalProperties) {
     // TODO POTENTIALLY CHECK IF IT IS A PROXY AND IF SO RETURN
     // TODO is there a point in even checking if new values are proxies????
 

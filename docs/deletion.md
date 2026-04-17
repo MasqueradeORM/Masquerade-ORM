@@ -15,7 +15,7 @@ export abstract class SoftDel extends Entity {
 
 export abstract class SoftDelUuid extends Entity {
   // switch 'UUID' to 'INT' or 'BIGINT' as needed.
-  static ormClassSettings_ = { idType: 'UUID' } 
+  static $ormClassSettings = { idType: 'UUID' } 
   isDeleted: boolean = false
 
   constructor() {
@@ -37,7 +37,7 @@ export class SoftDel extends Entity {
 
 export class SoftDelUuid extends Entity {
   // switch 'UUID' to 'INT' or 'BIGINT' as needed.
-  static ormClassSettings_ = { idType: 'UUID' }
+  static $ormClassSettings = { idType: 'UUID' }
   /**@type {boolean}*/ isDeleted = false
 
   /** @abstract */

@@ -10,24 +10,10 @@ import { OrmStore } from './ormStore.js'
 /**
  * @template T
  */
-export class SqlWhereObj {
+export class SqlTemplateObj {
   constructor(/**@type {string[]}*/ strings, /**@type {(Alias | PrimitivesNoNull)[]}*/ params) {
-    this.strings = strings
-    this.params = params
-  }
-}
-
-
-/**
- * @template T
- * @extends {Array<T>}
- */
-export class AndArray extends Array {
-  /**
-   * @param {...T} items
-   */
-  constructor(...items) {
-    super(...items)
+    this.__strings__ = strings
+    this.__params__ = params
   }
 }
 

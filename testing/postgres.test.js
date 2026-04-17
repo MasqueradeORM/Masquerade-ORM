@@ -21,12 +21,14 @@ generateFamiliesAndHouses()
 for (let i = 0; i < 3; i++) new NonRelationalClass2()
 
 const nonRelationalTest = await NonRelationalClass2.find({ where: { json: sql`->>'someInt' = '5'` } })
+const nonRelationalTest2 = await NonRelationalClass2.find({ where: {json: {someInt: 5}} })
 test('test 1 - find basics and change logging', async (t) => {
 
   await t.test('find basics', async (t) => {
 
     await t.test('find result length is correct', async () => {
       assert.strictEqual(nonRelationalTest.length, 3)
+      assert.strictEqual(nonRelationalTest2.length, 3)
     })
 
     await t.test('find returns correct typing', async () => {

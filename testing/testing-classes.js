@@ -4,7 +4,7 @@
 import { Entity } from '../index.js'
 import { jsonGenerator } from './miscFunctions.js'
 /**@typedef {import('../index.js').integer} integer */
-
+/**@typedef {import('../index.js').Unique} Unique */
 
 export class House extends Entity {
     /**@type {Person | undefined}*/ owner
@@ -36,19 +36,19 @@ export class Person extends Entity {
 
 
 /**
- * @typedef {Object} JSON
+ * @typedef {Object} MyJSON
  * @property {boolean} booleanField
  * @property {string[]} stringArr
  * @property {number} floatVal
- * @property {integer} someInt
+ * @property {number} someInt
  */
 
 export class NonRelationalClass extends Entity {
     /**@type {bigint}*/ bigint = 57n
     /**@type {integer}*/ int = 57
     /**@type {number}*/ float = 57.7
-    /**@satisfies {JSON[]}*/ jsonArr = [jsonGenerator()]
-    /**@satisfies {JSON}*/ json = jsonGenerator()
+    /**@type {(MyJSON & object)[]}*/ jsonArr = [jsonGenerator()]
+    /**@satisfies {MyJSON & object}*/ json = jsonGenerator()
 
     constructor() {
         super()
@@ -66,9 +66,9 @@ export class NonRelationalClass2 extends NonRelationalClass {
 }
 
 
-export class TestUser extends Entity {
-    /**@type {string}*/ username
-    /**@type {string}*/ email
+export class User extends Entity {
+    /**@type {string | Unique}*/ username
+    /**@type {string | Unique}*/ email
     /**@type {string}*/ password
     /**@type {TestChat[]}*/ chats = []
 
@@ -83,9 +83,9 @@ export class TestUser extends Entity {
 
 export class TestChat extends Entity {
     /**@type {string}*/ chatName
-    /**@type {TestUser[]}*/ users
+    /**@type {User[]}*/ users
     /**@type {TestMessage[]}*/ messages = []
-    constructor(chatName, /**@type {TestUser}*/ user) {
+    constructor(chatName, /**@type {User}*/ user) {
         super()
         this.chatName = chatName
         this.users = [user]
@@ -94,9 +94,9 @@ export class TestChat extends Entity {
 
 export class TestMessage extends Entity {
 /**@type {string}*/ text
-/**@type {TestUser}*/ sender
+/**@type {User}*/ sender
 
-    constructor(text, /**@type {TestUser}*/ user) {
+    constructor(text, /**@type {User}*/ user) {
         super()
         this.text = text
         this.sender = user

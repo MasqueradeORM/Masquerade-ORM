@@ -1,7 +1,7 @@
 // Copyright 2026 B.G (github.com/MasqueradeORM)
 // SPDX-License-Identifier: Apache-2.0
 
-import { Alias, aliasSymb, AndArray, OrArray, SqlWhereObj } from './classes.js';
+import { Alias, aliasSymb, OrArray, SqlTemplateObj } from './classes.js';
 import { floatColumnTypes, js2db } from './constants.js';
 
 export function nonSnake2Snake(/**@type {string}*/ str) {
@@ -38,28 +38,12 @@ export function js2SqlTyping(sqlClient, /**@type {string | undefined}*/ type = u
 }
 
 
-export function postgres2JsTyping(value, columnTypeObj) {
-    if (value === null || value === undefined) return undefined
-    const type = columnTypeObj.type
-    if (type === 'bigint') return BigInt(value)
-    else return value
-}
-
-export function sqlite2JsTyping(value, columnTypeObj) {
-    if (value === null || value === undefined ) return undefined
-    const type = columnTypeObj.type
-    if (columnTypeObj.isArray || type === 'object' || type === 'OrmJSON') return JSON.parse(value)
-    else if (type === 'bigint') return BigInt(value)
-    else if (type === 'boolean') return value === 1
-    else if (type === 'Date') return new Date(value)
-    else return value
-}
 
 export function getType(val) {
     if (val === null) return "null"
     if (val instanceof OrArray) return "OR"
-    if (val instanceof AndArray) return "AND"
-    if (val instanceof SqlWhereObj) return "SqlWhereObj"
+    //if (val instanceof AndArray) return "AND"
+    if (val instanceof SqlTemplateObj) return "SqlTemplateObj"
     if (val instanceof Alias) return "Alias"
     if (val instanceof Date) return "Date"
     if (Array.isArray(val)) return "array"
@@ -167,4 +151,12 @@ export function getPropertyClassification(propertyName, classWiki, /**@type {nul
         else errorMsgOrFunction(propertyName, classWiki)
     }
     return ["undefined"]
+}
+
+export function getJunctionName(
+    baseTableName,
+    propertyName
+
+) {
+    return `${baseTableName}___${nonSnake2Snake(propertyName)}_jt`
 }

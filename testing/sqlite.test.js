@@ -17,16 +17,29 @@ const { House, Person, NonRelationalClass2 } = classes
 const configObj = createConfigObj(`sqlite`)
 await initORM(configObj, classes)
 let dbChanges = OrmStore.store.dbChangesObj
+
+
+// const person1 = new classes.User('a', 'b', 'c')
+// const person2 = new classes.User('a', 'b', 'c')
+// await person1.save()
+// person1.username = 'newUsername'
+// person1.chats.push(new classes.TestChat('a', person1))
+// const dbState = await person1.fetchDbState()
+// await person2.save()
+
+
 generateFamiliesAndHouses()
 for (let i = 0; i < 3; i++) new NonRelationalClass2()
 
 const nonRelationalTest = await NonRelationalClass2.find({ where: { json: sql`json_extract(#, '$.someInt') = 5` } })
+const nonRelationalTest2 = await NonRelationalClass2.find({ where: {json: {someInt: 5}} })
 test('test 1 - find basics and change logging', async (t) => {
 
     await t.test('find basics', async (t) => {
 
         await t.test('find result length is correct', async () => {
             assert.strictEqual(nonRelationalTest.length, 3)
+            assert.strictEqual(nonRelationalTest2.length, 3)
         })
 
         await t.test('find returns correct typing', async () => {

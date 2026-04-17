@@ -27,8 +27,10 @@ export class ChangeLogger {
         let $deletedInstances, $deletedUnloadedRelations
         let rethrowOnError = !!instanceData
         /**@type {any}*/ let data4Revert
+        
         if (instanceData) {
-            const { classWiki, instanceId } = instanceData
+            const { classWiki, instance: instance } = instanceData
+            const instanceId = instance.id
             const className = classWiki.className
             const classChangeObj = dbChanges[className]
             if (!classChangeObj) return
@@ -40,7 +42,8 @@ export class ChangeLogger {
                     [instanceId]: instanceLogger
                 }
             }
-            data4Revert = { ...changes2Organize }
+            //data4Revert = { ...changes2Organize }
+            data4Revert = {}
             $deletedUnloadedRelations = dbChanges.$deletedUnloadedRelations
             if ($deletedUnloadedRelations) {
                 const deletedUnloadedRelations = {}
@@ -55,7 +58,7 @@ export class ChangeLogger {
                 }
                 if (Object.keys(deletedUnloadedRelations).length) {
                     $deletedUnloadedRelations = deletedUnloadedRelations
-                    data4Revert.$deletedUnloadedRelations = deletedUnloadedRelations
+                    //data4Revert.$deletedUnloadedRelations = deletedUnloadedRelations
                 }
             }
         }
@@ -103,8 +106,13 @@ export class ChangeLogger {
             else sqliteSaveQuery(saveContext)
         }
         catch (err) {
+            if (rethrowOnError) {
+                // 
+                // if (instanceLogger[newEntityInstanceSymb]) throw (err)
+                // await instanceData.instance.fetchDbState()
+                throw (err)
+            }    
             relogFailedChanges(data4Revert)
-            if (rethrowOnError) throw (err)
         }
     }
 }

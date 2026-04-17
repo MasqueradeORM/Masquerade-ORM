@@ -11,7 +11,7 @@ export class DbManager {
     */
     static async dropUnusedColumns(/**@type {string | undefined}*/ tableName = undefined) {
         const queryFunc = getQueryFunc(false)
-        const queryStrGenerator = (tableName, columnName) => `ALTER TABLE ${tableName} DROP COLUMN ${columnName}`
+        const queryStrGenerator = (tableName, columnName) => `ALTER TABLE "${tableName}" DROP COLUMN ${columnName}`
         const columnDroppingDict = DbManagerStore.dropColumnsDict
         if (tableName) {
             const droppedColumnNames = columnDroppingDict[tableName]
@@ -50,6 +50,7 @@ export class DbManager {
 }
 
 async function dropTables(tableNameArr) {
+    tableNameArr = tableNameArr.map(tableName => `"${tableName}"`)
     const queryFunc = getQueryFunc()
     if (!tableNameArr.length) return
     await queryFunc(tableNameArr)

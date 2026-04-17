@@ -33,7 +33,7 @@ export async function postgresSaveQuery({
         const paramsArr = []
         let finalString = 'WITH'
         for (const [tableName, { idType, params: ids }] of Object.entries(deletedUnloadedRelations)) {
-            const queryStr = `DELETE FROM ${tableName} WHERE joining_id = ANY($${paramIndex++}::${idType}[])`
+            const queryStr = `DELETE FROM "${tableName}" WHERE joining_id = ANY($${paramIndex++}::${idType}[])`
             finalString += ` cte${i++} AS (` + queryStr + `), `
             paramsArr.push(ids)
         }
@@ -67,7 +67,7 @@ export async function postgresSaveQuery({
     if (deletedInstances) {
         paramIndex = finalParams.length + 1
         for (const [tableName, deletedIds] of Object.entries(deletedInstances)) {
-            const queryStr = `DELETE FROM ${tableName} WHERE id = ANY($${paramIndex++})`
+            const queryStr = `DELETE FROM "${tableName}" WHERE id = ANY($${paramIndex++})`
             finalString += ` cte${i++} AS (` + queryStr + `), `
             finalParams.push(deletedIds)
         }
@@ -92,7 +92,7 @@ export function junctionTableRemovalPostgres(removedIds, tableName, paramIndex, 
     const params = []
 
     const [joiningIdTypeCast, joinedIdTypeCast] = [getPostgresIdTypeCasting(idTypeArr[0]), getPostgresIdTypeCasting(idTypeArr[1])]
-    queryStr = `DELETE FROM ${snakedTableName} AS jt USING (VALUES`
+    queryStr = `DELETE FROM "${snakedTableName}" AS jt USING (VALUES`
     for (const idPairings of removedIds) {
         const joiningId = idPairings[0]
         const removedJoinedIds = idPairings[1]

@@ -1,12 +1,23 @@
 // Copyright 2026 B.G (github.com/MasqueradeORM)
 // SPDX-License-Identifier: Apache-2.0
 
-import { nonSnake2Snake, postgres2sqliteQueryStr, snake2Pascal, sqlite2JsTyping } from "../../../misc/miscFunctions.js"
+import { nonSnake2Snake, postgres2sqliteQueryStr, snake2Pascal } from "../../../misc/miscFunctions.js"
 import { rowObj2InstanceProxy } from "../../../proxies/instanceProxy.js"
 import { createNonRelationalArrayProxy } from "../../../proxies/nonRelationalArrayProxy.js"
 import { createObjectProxy } from "../../../proxies/objectProxy.js"
 import { findColumnObjOnWiki } from "../find.js"
 import { junctionJoinCte, junctionJoinSelectedCte, parentJoin } from "../joins.js"
+
+
+export function sqlite2JsTyping(value, columnTypeObj) {
+    if (value == null) return undefined
+    const type = columnTypeObj.type
+    if (columnTypeObj.isArray || type === 'object') return JSON.parse(value)
+    else if (type === 'bigint') return BigInt(value)
+    else if (type === 'boolean') return value === 1
+    else if (type === 'Date') return new Date(value)
+    else return value
+}
 
 export function sqliteCreateProxyArray(resultArray, findWiki, entitiesFuncArr, hasEagerLoading, isOrdered = false) {
     if (!resultArray || resultArray.length === 0) return []
@@ -41,7 +52,7 @@ export function sqliteCreateProxyArray(resultArray, findWiki, entitiesFuncArr, h
         const instanceWiki = createInstanceWiki(findWiki)
 
         for (const rowObj of resultArray) createNestedClassInstance(rowObj, instanceWiki, ledger, entitiesFuncArr)
-        for (const instance of Object.values(ledger)) formatAndproxifyEntityInstanceObj(instance, findWiki, entitiesFuncArr, proxyArr)
+        for (const instance of Object.values(ledger)) formatAndProxifyEntityInstance(instance, findWiki, entitiesFuncArr, proxyArr)
     }
 
     if (isOrdered) {
@@ -107,18 +118,18 @@ function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entitie
 }
 
 
-export function formatAndproxifyEntityInstanceObj(instance, findWiki, entities, /**@type {any}*/ proxyArr = undefined) {
+export function formatAndProxifyEntityInstance(instance, findWiki, entities, /**@type {any}*/ proxyArr = undefined) {
     const junctionEntries = Object.entries(findWiki.junctions ?? {})
     for (const [junctionKey, junctionObj] of junctionEntries) {
         if (junctionObj.isArray) {
             instance[junctionKey] = Object.values(instance[junctionKey])
             if (!instance[junctionKey]) continue
-            for (const joinedInstance of instance[junctionKey]) formatAndproxifyEntityInstanceObj(joinedInstance, junctionObj, entities)
+            for (const joinedInstance of instance[junctionKey]) formatAndProxifyEntityInstance(joinedInstance, junctionObj, entities)
         }
         else {
             instance[junctionKey] = Object.values(instance[junctionKey])[0]
             if (!instance[junctionKey]) continue
-            formatAndproxifyEntityInstanceObj(instance[junctionKey], junctionObj, entities)
+            formatAndProxifyEntityInstance(instance[junctionKey], junctionObj, entities)
         }
     }
     const proxy = rowObj2InstanceProxy(instance, findWiki, entities)
@@ -188,7 +199,7 @@ export function eagerLoadCTEsSqlite(findWiki, columnObj, cteArr = [], selectStat
     }
     else {
         cteStr += `${baseAlias}_cte AS (SELECT `
-        fromStatement += ` FROM ${nonSnake2Snake(findWiki.className)} ${baseAlias} `
+        fromStatement += ` FROM "${nonSnake2Snake(findWiki.className)}" ${baseAlias} `
 
         const baseColumns = Object.values(columnObj[findWiki.className])
         let columnNamingStr = baseColumns.map(columnName => `${baseAlias}.${columnName} AS ${baseAlias}_${columnName}`).join(`, `) + `, `

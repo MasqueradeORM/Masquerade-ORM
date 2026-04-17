@@ -1,15 +1,13 @@
 // Copyright 2026 B.G (github.com/MasqueradeORM)
 // SPDX-License-Identifier: Apache-2.0
 
-import { Alias, aliasSymb, SqlWhereObj } from "../../misc/classes.js"
+import { Alias, aliasSymb, SqlTemplateObj } from "../../misc/classes.js"
 import { array2String, getType } from "../../misc/miscFunctions.js"
 import { OrmStore } from "../../misc/ormStore.js"
 import { removeRelationFromUnusedRelations } from "./find.js"
 import { classWiki2ScopeProxy } from "./scopeProxies.js"
 import { mergeTemplateScope, templateFuncs2Statements } from "./templateProxies.js"
-
-/**@typedef {import('../../misc/classes.js').AndArray} AndArray */
-/**@typedef {import('../../misc/classes.js').AndArray} OrArray */
+/**@typedef {import('../../misc/classes.js').OrArray} OrArray */
 
 
 export function whereValues2Statements(mapObj, whereValuesObj, whereOutputDict) {
@@ -26,14 +24,14 @@ function validateWhereValue(whereValue, propertyName, /**@type {object}*/ proper
     const valueType = getType(whereValue)
     let propertyType = columnType
 
-    if (valueType === "AND" || valueType === "OR") validateAndOrInputs(whereValue, propertyName, propertyType)
+    if (valueType === "OR") validateAndOrInputs(whereValue, propertyName, propertyType)
 
-    else if (valueType === "SqlWhereObj") validateSqlObjectParams(whereValue, propertyName)
+    else if (valueType === "SqlTemplateObj") validateSqlObjectParams(whereValue, propertyName)
 
     else if (valueType === "function") validateSqlArrowFn(whereValue, propertyName)
 
     else if (valueType === "array") {
-        if (!columnIsArray) throw new Error(`\nThe 'where' argument ${array2String(whereValue)} is invalid - expected argument of type ${columnType} | Raw |  OR | AND | undefined | null.`)
+        if (!columnIsArray) throw new Error(`\nThe 'where' argument ${array2String(whereValue)} is invalid - expected argument of type ${columnType} | Raw |  OR | undefined | null.`)
         else {
             const validTypes = [propertyType, "null", "undefined"]
             for (let i = 0; i < whereValue.length; i++) {
@@ -54,21 +52,21 @@ function validateWhereValue(whereValue, propertyName, /**@type {object}*/ proper
     }
 }
 
-function validateAndOrInputs(/**@type {AndArray | OrArray}*/ AndOr, /**@type {string}*/ propertyName, /**@type {any}*/ propertyType) {
-    const AndOrValue = AndOr[0]
+function validateAndOrInputs(/**@type {OrArray}*/ orArr, /**@type {string}*/ propertyName, /**@type {any}*/ propertyType) {
+    const AndOrValue = orArr[0]
     for (const elementVal of AndOrValue) {
         const valueType = getType(elementVal)
-        if (valueType === "SqlWhereObj") validateSqlObjectParams(elementVal, propertyName)
-        else if (valueType === "AND" || valueType === "OR") validateAndOrInputs(elementVal, propertyName, propertyType)
+        if (valueType === "SqlTemplateObj") throw new Error(`\nThe OR function does not support 'sql' template functions.`)
+        else if (valueType === "OR") validateAndOrInputs(elementVal, propertyName, propertyType)
         else if (valueType === "array") {
             //@ts-ignore
             if (propertyType.isArray) validateArrayElementsType(elementVal, propertyType.type, ['null', 'undefined'])
-            else throw new Error(`\n'${elementVal}' of type ${valueType} is invalid as an argument of 'AND'/'OR' functions for the property '${propertyName}', which expects values of type ${propertyType.type} | null | undefined | SqlWhereObj | AND | OR.`)
+            else throw new Error(`\n'${elementVal}' of type ${valueType} is invalid as an argument for 'OR' functions of the property '${propertyName}', which expects values of type ${propertyType.type} | null | undefined | SqlTemplateObj | OR.`)
         }
         else {
             //@ts-ignore
             const validTypes = propertyType.isArray ? ["undefined", "null"] : [propertyType.type, "undefined", "null"]
-            if (!validTypes.includes(valueType)) throw new Error(`\n'${elementVal}' of type ${valueType} is invalid as an argument of 'AND'/'OR' functions for the property '${propertyName}', which expects values of type ${array2String(validTypes, true)} | SqlWhereObj | AND | OR.`)
+            if (!validTypes.includes(valueType)) throw new Error(`\n'${elementVal}' of type ${valueType} is invalid as an argument for 'OR' functions of the property '${propertyName}', which expects values of type ${array2String(validTypes, true)} | SqlTemplateObj | OR.`)
         }
     }
 }
@@ -83,23 +81,24 @@ function validateArrayElementsType(/**@type {any[]}*/ array, /**@type {string}*/
     }
 }
 
-function validateSqlObjectParams(sqlObj, propertyName, whereValueFunc = null) {
-    if (sqlObj.params.length === 0) return
+function validateSqlObjectParams(SqlTemplateObj, propertyName, whereValueFunc = null) {
+    const { __strings__: strings, __params__: params } = SqlTemplateObj
+    if (params.length === 0) return
 
     if (whereValueFunc) {
         let hasPoundsign = false
-        hasPoundsign = sqlObj.strings.some(str => str.includes("#"))
+        hasPoundsign = strings.some(str => str.includes("#"))
         if (hasPoundsign) throw new Error(`\nInvalid input in the 'where' field - the value of property ${propertyName} ( ${whereValueFunc} ) should not contain any #'s in the psuedo-query-string. \nWhen passing this property a function, only use a template literal of the function's argument as a placeholder. \nEXAMPLE: (a) => sql'\${a} < val1 OR \${a} > val2'.`)
 
         let valueParams = 0
         let placeholderParams = 0
-        sqlObj.params.forEach((param) => param instanceof Alias ? placeholderParams++ : valueParams++)
+        params.forEach((param) => param instanceof Alias ? placeholderParams++ : valueParams++)
         if (placeholderParams !== valueParams) throw new Error(
             `\nInvalid input in the 'where' field - the value of property ${propertyName} is an 'sql' function ( ${whereValueFunc} ) that expected an equal number of template literals of the alias argument and of template literals of values, but instead got ${placeholderParams} of the former and ${valueParams} of the latter.`
         )
     }
 
-    for (const param of sqlObj.params) {
+    for (const param of params) {
         const paramType = getType(param)
         if (paramType === "array") {
             for (let i = 0; i < param.length; i++) {
@@ -110,9 +109,9 @@ function validateSqlObjectParams(sqlObj, propertyName, whereValueFunc = null) {
 }
 
 function validateSqlArrowFn(sqlFunc, propertyName) {
-    const sqlWhereObj = sqlFunc(new Alias(propertyName))
-    if (!(sqlWhereObj instanceof SqlWhereObj)) throw new Error(`\nInvalid input in the 'where' field, ${sqlFunc} of property ${propertyName} is not valid, the only valid function argument is the tagged template literal function sql. \nE.g. sql'> \${val}' | sql'# > \${val1} AND # < \${val2}' - for more advanced examples refer to documentation.`)
-    validateSqlObjectParams(sqlWhereObj, propertyName, sqlFunc)
+    const SqlTemplateObj = sqlFunc(new Alias(propertyName))
+    if (!(SqlTemplateObj instanceof SqlTemplateObj)) throw new Error(`\nInvalid input in the 'where' field, ${sqlFunc} of property '${propertyName}' is not valid, as the function does not return an object of type SqlTemplateObj.`)
+    validateSqlObjectParams(SqlTemplateObj, propertyName, sqlFunc)
 }
 
 
@@ -121,18 +120,22 @@ function whereValue2Statement(whereValue, propertyName, aliasObj, whereOutputDic
     let queryStr = ``
     const columnIdentity = Alias.createColumnId(aliasObj, propertyName)
 
-    if (whereValueType === "AND" || whereValueType === "OR") {
-        queryStr += andOr2Statement(whereValue, whereValueType, columnIdentity, whereOutputDict)
+    if (whereValueType === "OR") {
+        queryStr += or2Statement(whereValue, columnIdentity, whereOutputDict)
     }
-    else if (whereValueType === "SqlWhereObj") {
-        queryStr += sqlWhereObj2Statement(whereValue, columnIdentity, whereOutputDict)
+    else if (whereValueType === "SqlTemplateObj") {
+        queryStr += SqlTemplateObj2Statement(whereValue, columnIdentity, whereOutputDict)
     }
     else if (whereValueType === "function") {
         queryStr += nonRelationalWhereFunction2Statement(whereValue, columnIdentity, whereOutputDict)
     }
     else {
         //primitive values
-        if (Array.isArray(whereValue)) whereValue = whereValue.filter(() => true)
+        if (whereValueType === 'object') {
+            JSONValAccessor(columnIdentity, whereValue, whereOutputDict)
+            return
+        }
+        else if (whereValueType === 'array') whereValue = whereValue.filter(() => true)
         const paramIndex = whereOutputDict.params.length + 1
         queryStr += `${columnIdentity} = $${paramIndex}`
         whereOutputDict.params.push(whereValue)
@@ -142,20 +145,88 @@ function whereValue2Statement(whereValue, propertyName, aliasObj, whereOutputDic
     whereOutputDict.statements.push(queryStr)
 }
 
-function andOr2Statement(whereValue, whereValueType, columnIdentity, whereOutputDict) {
+function JSONValAccessor(columnIdentity, objVal, whereOutputDict) {
+    const { sqlClient } = OrmStore.store
+    // @ts-ignore
+    const stringValPairs = fieldPathAndVal(objVal)
+    const orHandler = (valIdentifier, vals, whereOutputDict, root = false) => {
+        const strings = []
+        let paramIndex = whereOutputDict.params.length + 1
+        for (const el of vals) {
+            const valueType = getType(el)
+            if (valueType === "SqlTemplateObj") throw new Error(`\nThe 'OR' function does not support 'sql' template functions.`)
+            else if (valueType === "OR") strings.push(orHandler(valIdentifier, el, whereOutputDict))
+            else {
+                strings.push(`${valIdentifier} = $${paramIndex++}`)
+                whereOutputDict.params.push(el)
+            }
+        }
+        if (root) whereOutputDict.statements.push(strings.join(` OR `))
+        else return strings.join(` OR `)
+    }
+    const handler = sqlClient === 'sqlite'
+        ? (path, val) => {
+            const valIdentifier = `json_extract(${columnIdentity}, '$${path}')`
+            const valType = getType(val)
+            if (valType === 'SqlTemplateObj')
+                whereOutputDict.statements.push(SqlTemplateObj2Statement(val, valIdentifier, whereOutputDict))
+            else if (valType === 'OR') orHandler(valIdentifier, val[0], whereOutputDict, true)
+            else {
+                whereOutputDict.statements.push(valIdentifier + ` = ?`)
+                whereOutputDict.params.push(val)
+            }
+        }
+        : (path, val) => {
+            let postgresPath = ''
+            path = path.slice(1)
+            const loopArr = path.split('.')
+            const valField = loopArr.pop()
+            for (const field of loopArr) {
+                postgresPath += `->'${field}'`
+            }
+            postgresPath += `->>'${valField}'`
+            const valIdentifier = `${columnIdentity}${postgresPath}`
+            const valType = getType(val)
+            if (valType === 'SqlTemplateObj')
+                whereOutputDict.statements.push(SqlTemplateObj2Statement(val, valIdentifier, whereOutputDict))
+            else if (valType === 'OR') orHandler(valIdentifier, val[0], whereOutputDict, true)
+            else {
+                let paramIndex = whereOutputDict.params.length + 1
+                whereOutputDict.statements.push(valIdentifier + ` = $${paramIndex}`)
+                whereOutputDict.params.push(val)
+            }
+        }
+    for (const [path, val] of stringValPairs) handler(path, val)
+    // `#->'preferences'->>'theme' = 'dark'`
+    // `json_extract(#, '$.preferences.theme') = 'dark'`
+}
+
+function fieldPathAndVal(obj, fieldStr = '', stringValPairs = []) {
+    for (const [key, value] of Object.entries(obj)) {
+        const keyFieldStr = `${fieldStr}.${key}`
+        const valType = getType(value)
+        if (valType === 'object') {
+
+            fieldPathAndVal(value, keyFieldStr, stringValPairs)
+        }
+        else stringValPairs.push([keyFieldStr, value])
+    }
+    return stringValPairs
+}
+
+function or2Statement(whereValue, columnIdentity, whereOutputDict) {
     let queryStr = ``
     let paramIndex
     whereValue.forEach((el, index) => {
         paramIndex = whereOutputDict.params.length + 1
-        if (index !== 0) queryStr += whereValueType === "AND" ? ` AND` : ` OR`
+        if (index !== 0) queryStr += ` OR`
         const elType = getType(el)
-
-        if (elType === "AND" || elType === "OR") {
-            queryStr += andOr2Statement(el, elType, columnIdentity, whereOutputDict)
-        }
-        else if (elType === "SqlWhereObj") {
-            queryStr += sqlWhereObj2Statement(el, columnIdentity, whereOutputDict)
-        }
+        if (elType === "OR") queryStr += or2Statement(el, columnIdentity, whereOutputDict)
+        
+        // else if (elType === "SqlTemplateObj") {
+        //     throw new Error(`\nOR/AND do not support 'sql' template functions.`)
+        //     //queryStr += SqlTemplateObj2Statement(el, columnIdentity, whereOutputDict)
+        // }
         else {
             queryStr += ` ${columnIdentity} = $${paramIndex}`
             whereOutputDict.params.push(el)
@@ -164,17 +235,17 @@ function andOr2Statement(whereValue, whereValueType, columnIdentity, whereOutput
     return `(${queryStr.trim()})`
 }
 
-function sqlWhereObj2Statement(sqlWhereObj, columnIdentity, whereOutputDict) {
+export function SqlTemplateObj2Statement(SqlTemplateObj, columnIdentity, whereOutputDict) {
     let queryStr = ``
     let paramIndex = whereOutputDict.params.length + 1
     let hasPoundsign = false
-    hasPoundsign = sqlWhereObj.strings.some(str => str.includes("#"))
+    const { __strings__: strings, __params__: params } = SqlTemplateObj
+    hasPoundsign = strings.some(str => str.includes("#"))
     if (!hasPoundsign) queryStr += `# `
-
-    while (sqlWhereObj.strings.length + sqlWhereObj.params.length > 0) {
-        if (sqlWhereObj.strings.length) queryStr += sqlWhereObj.strings.shift()
-        if (sqlWhereObj.params.length) {
-            whereOutputDict.params.push(sqlWhereObj.params.shift())
+    while (strings.length + params.length > 0) {
+        if (strings.length) queryStr += strings.shift()
+        if (params.length) {
+            whereOutputDict.params.push(params.shift())
             queryStr += `$${paramIndex++}`
         }
     }
@@ -185,11 +256,12 @@ function sqlWhereObj2Statement(sqlWhereObj, columnIdentity, whereOutputDict) {
 function nonRelationalWhereFunction2Statement(func, columnIdentity, whereOutputDict) {
     let queryStr = ``
     let paramIndex = whereOutputDict.params.length + 1
-    const sqlWhereObj = func(new Alias(columnIdentity))
-    while (sqlWhereObj.params.length + sqlWhereObj.strings.length > 0) {
-        sqlWhereObj.strings.length && (queryStr += sqlWhereObj.strings.shift())
-        if (sqlWhereObj.params.length) {
-            const param = sqlWhereObj.params.shift()
+    const SqlTemplateObj = func(new Alias(columnIdentity))
+    const { __strings__: strings, __params__: params } = SqlTemplateObj
+    while (strings.length + params.length > 0) {
+        if (strings.length) queryStr += strings.shift()
+        if (params.length) {
+            const param = params.shift()
             if (param instanceof Alias) queryStr += param[aliasSymb]
             else {
                 queryStr += `$${paramIndex++}`
@@ -242,5 +314,5 @@ export function mergeWhereScope(scopeProxy, whereObj) {
 export function parseTemplateWhere(templateWhere, templateAliasObj, whereDict) {
     const { statement, params } = templateFuncs2Statements(templateWhere, templateAliasObj, whereDict.params.length + 1)
     whereDict.statements.push(statement)
-    whereDict.params.push(params)
+    whereDict.params.push(...params)
 }
