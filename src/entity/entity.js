@@ -5,7 +5,6 @@
 
 import { LazyPromise } from "../misc/classes.js"
 import { ChangeLogger } from "../changeLogger/changeLogger.js"
-import { dependenciesSymb, referencesSymb } from "../misc/constants.js"
 import { coloredBackgroundConsoleLog, getJunctionName, nonSnake2Snake, snake2Pascal } from "../misc/miscFunctions.js"
 import { OrmStore } from "../misc/ormStore.js"
 import { insertProxyIntoEntityMap, promiseExecutor, proxifyEntityInstance, rowObj2InstanceProxy, searchEntityMap } from "../proxies/instanceProxy.js"
@@ -200,7 +199,7 @@ export class Entity {
     const id4Deletion = this.id
     const className = this.constructor.name
     let classWiki = classWikiDict[className]
-    const dependencyContext = classWiki[dependenciesSymb]
+    const dependencyContext = classWiki.$dependents
     if (dependencyContext) {
       let dependentsData
       if (!dependentsMapsObj[className]) throwDeletionErr(className, id4Deletion)
@@ -257,7 +256,7 @@ export class Entity {
     const { classWikiDict, dependentsMapsObj } = OrmStore.store
 
     const classWiki = classWikiDict[className]
-    const dependencyContext = classWiki[dependenciesSymb]
+    const dependencyContext = classWiki.$dependents
     if (!dependencyContext) return undefined
 
     for (const [className, relationalProps] of Object.entries(dependencyContext)) {
@@ -280,7 +279,7 @@ export class Entity {
     const { classWikiDict, dependentsMapsObj } = OrmStore.store
     const classWiki = classWikiDict[className]
 
-    const referencesContext = classWiki[referencesSymb]
+    const referencesContext = classWiki.$referencers
 
     if (referencesContext) {
       for (const [className, relationalProps] of Object.entries(referencesContext ?? {})) {
@@ -289,7 +288,7 @@ export class Entity {
       }
     }
 
-    const dependencyContext = classWiki[dependenciesSymb]
+    const dependencyContext = classWiki.$dependents
     if (!dependencyContext) {
       if (!referencesContext) return undefined
       return returnedObj

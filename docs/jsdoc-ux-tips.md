@@ -79,49 +79,49 @@ Copy the JSON below and save.
 		]
 	},
 	"@type string": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "string",
 		"body": [
 			"/**@type {string${1}}*/$0"
 		]
 	},
 	"@type number": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "number",
 		"body": [
 			"/**@type {number${1}}*/$0"
 		]
 	},
 	"@type boolean": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "boolean",
 		"body": [
 			"/**@type {boolean${1}}*/$0"
 		]
 	},
 	"@type any": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "any",
 		"body": [
 			"/**@type {any${1}}*/$0"
 		]
 	},
 	"@type Map": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "Map",
 		"body": [
 			"/**@type {Map<${1}>}*/$0"
 		]
 	},
 	"@type Function": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "Function",
 		"body": [
 			"/**@type {Function${1}}*/$0"
 		]
 	},
 	"@type": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "type",
 		"body": [
 			"/**@type {${1}}*/$0"
@@ -135,14 +135,14 @@ Copy the JSON below and save.
 		]
 	},
 	"@typedef import": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "importTypedef",
 		"body": [
 			"/**@typedef {import('${1}').$2} $3*/$0"
 		]
 	},
 	"@typedef": {
-		"scope": "javascript,typescript",
+		"scope": "javascript",
 		"prefix": "typedef",
 		"body": [
 			"/**",

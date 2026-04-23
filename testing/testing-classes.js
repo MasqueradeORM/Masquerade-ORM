@@ -14,6 +14,8 @@ export class House extends Entity {
         this.owner = owner
         this.tenants = tenants
     }
+
+    static $ormClassSettings = {idType: 'UUID'}
 }
 
 export class Person extends Entity {
@@ -53,6 +55,8 @@ export class NonRelationalClass extends Entity {
     constructor() {
         super()
     }
+
+        static $ormClassSettings = {idType: 'UUID'}
 }
 
 export class NonRelationalClass2 extends NonRelationalClass {
@@ -63,6 +67,7 @@ export class NonRelationalClass2 extends NonRelationalClass {
     constructor() {
         super()
     }
+
 }
 
 
@@ -81,14 +86,24 @@ export class User extends Entity {
     }
 }
 
+export class User2 extends User {
+
+    /**@type {string}*/ hello = 'world'
+    constructor(username, email, password) {
+        super(username, email, password)
+    }
+}
+
 export class TestChat extends Entity {
     /**@type {string}*/ chatName
     /**@type {User[]}*/ users
+    /**@type {User2}*/ newDep
     /**@type {TestMessage[]}*/ messages = []
-    constructor(chatName, /**@type {User}*/ user) {
+    constructor(chatName, /**@type {User}*/ user, /**@type {User2}*/ user2) {
         super()
         this.chatName = chatName
         this.users = [user]
+        this.newDep = user2
     }
 }
 

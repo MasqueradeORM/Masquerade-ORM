@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 
-
 export const newEntityInstanceSymb = Symbol("newEntity")
-export const dependenciesSymb = Symbol("dependencies")
-export const referencesSymb = Symbol("references")
 
 
 export const js2db = {
