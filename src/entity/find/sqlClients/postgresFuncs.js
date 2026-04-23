@@ -13,6 +13,7 @@ export function postgres2JsTyping(value, columnTypeObj) {
     if (value == null) return undefined
     const type = columnTypeObj.type
     if (type === 'bigint') return BigInt(value)
+    else if (type === 'Date') return new Date(value)
     else return value
 }
 

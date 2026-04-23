@@ -267,6 +267,26 @@ test('test 3 - deletion', async (t) => {
     })
 })
 
+test('test 4 - Date typecasting', async (t) => {
+   let house = (await House.find({
+    relations:
+    {
+      owner:
+        { children: true },
+      tenants:
+      {
+        father: true,
+        mother: true
+      }
+    },
+    where: { id: 5 }
+  }))[0]
+
+  t.test('Date typecasting', () => {
+    assert.strictEqual(house.updatedAt instanceof Date, true)
+  })
+})
+
 test.after(async () => {
     // @ts-ignore
     configObj.dbConnection.close()

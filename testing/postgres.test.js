@@ -19,7 +19,7 @@ await initORM(configObj, classes)
 let dbChanges = OrmStore.store.dbChangesObj
 generateFamiliesAndHouses()
 for (let i = 0; i < 3; i++) new NonRelationalClass2()
-
+  
 const nonRelationalTest = await NonRelationalClass2.find({ where: { json: sql`->>'someInt' = '5'` } })
 const nonRelationalTest2 = await NonRelationalClass2.find({ where: {json: {someInt: 5}} })
 test('test 1 - find basics and change logging', async (t) => {
@@ -203,6 +203,7 @@ await test('test 2 - promises and instance logging', async (t) => {
   })
 })
 
+
 test('test 3 - deletion', async (t) => {
   let house = (await House.find({
     relations:
@@ -256,6 +257,26 @@ test('test 3 - deletion', async (t) => {
     house.tenants && tenantCount && assert.strictEqual(tenantCount - house.tenants?.length, 2)
     assert.strictEqual(childrenIds.includes(firstChild.id), false)
     for (const person of house.tenants ?? []) assert.strictEqual(person.father, undefined)
+  })
+})
+
+test('test 4 - Date typecasting', async (t) => {
+   let house = (await House.find({
+    relations:
+    {
+      owner:
+        { children: true },
+      tenants:
+      {
+        father: true,
+        mother: true
+      }
+    },
+    where: { id: 5 }
+  }))[0]
+
+  t.test('Date typecasting', () => {
+    assert.strictEqual(house.updatedAt instanceof Date, true)
   })
 })
 
