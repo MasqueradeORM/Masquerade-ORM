@@ -81,7 +81,7 @@ export function rowObj2InstanceProxy(resultObj, findWiki, Entities) {
 
 export function promiseExecutor(target, key, resolve, reject) {
     if (ChangeLogger.scheduledFlush) ChangeLogger.save().then()
-    const { sqlClient, dbConnection, entities } = OrmStore.store
+    const { sqlClient, dbConnection, entityFunctions } = OrmStore.store
     const classWiki = OrmStore.getClassWiki(target)
     const [classification, joinedClassWiki, mapWithProp] = getPropertyClassification(key, classWiki)
     const isArrayOfInstances = joinedClassWiki.isArray
@@ -110,7 +110,7 @@ export function promiseExecutor(target, key, resolve, reject) {
                 const proxyArr = []
                 for (const row of rows) {
                     const rowWithCamelCasedProps = Object.fromEntries(Object.entries(row).map(([key, val]) => [snake2Pascal(key, true), val]))
-                    proxyArr.push(rowObj2InstanceProxy(rowWithCamelCasedProps, findWiki, entities))
+                    proxyArr.push(rowObj2InstanceProxy(rowWithCamelCasedProps, findWiki, entityFunctions))
                 }
 
                 if (isArrayOfInstances) target[key] = createRelationalArrayProxy(target, key, proxyArr)
@@ -132,7 +132,7 @@ export function insertProxyIntoEntityMap(proxy, entityMap) {
 }
 
 export function instanceProxySetHandler(target, key, value, eventListenersObj, classWiki) {
-    const { dbChangesObj } = OrmStore.store
+    const { mutationsLog } = OrmStore.store
     const oldValue = target[key]
     if (oldValue === value) return
     if (value === null) value = undefined
@@ -174,12 +174,12 @@ export function instanceProxySetHandler(target, key, value, eventListenersObj, c
         }
         else target[key] = value
 
-        if (valChanged) logInChangeLogger(target, key, value, dbChangesObj, entityClass, isArray, expectedValType)
+        if (valChanged) logInChangeLogger(target, key, value, mutationsLog, entityClass, isArray, expectedValType)
     }
     else if (classification === "Join" || classification === "ParentJoin") {
         const { className: expectedValType, optional } = columnType
-        dbChangesObj[entityClass] ??= {}
-        const instanceChangeObj = dbChangesObj[entityClass][target.id] ??= {}
+        mutationsLog[entityClass] ??= {}
+        const instanceChangeObj = mutationsLog[entityClass][target.id] ??= {}
         const isValid = validateRelationalValSetting(target, key, value, isArray, expectedValType, optional, oldValue, entityClass)
         if (!isValid) return
 
@@ -324,8 +324,8 @@ export function uncalledPropertySetHandler(target, key, value, columnClassificat
     // }
     //todo check if is optional against a potentially undefined value
 
-    const { dbChangesObj, sqlClient } = OrmStore.store
-    const classChangeObj = dbChangesObj[target.constructor.name] ??= {}
+    const { mutationsLog, sqlClient } = OrmStore.store
+    const classChangeObj = mutationsLog[target.constructor.name] ??= {}
     const instanceChangeObj = classChangeObj[target.id] ??= {}
     const { isArray, optional } = propertyTypeObj
 
@@ -348,7 +348,7 @@ export function uncalledPropertySetHandler(target, key, value, columnClassificat
     const junctionTableName = getJunctionName(nonSnake2Snake(nameOfClassWithProp), nonSnake2Snake(key))
     const idType = js2SqlTyping(sqlClient, mapWithProp.columns.id.type)
 
-    const uncalledPropChangeObj = dbChangesObj.$deletedUnloadedRelations ??= {}
+    const uncalledPropChangeObj = mutationsLog.$deletedUnloadedRelations ??= {}
     const junctionChangeObj = uncalledPropChangeObj[junctionTableName] ??= { idType, params: [] }
     junctionChangeObj.params.push(joiningId)
 }
@@ -380,13 +380,13 @@ export function proxifyEntityInstance(instance, uncalledRelationalProperties) {
 
     if (instance === undefined || !instance.id) return instance
     const instanceClassName = instance.constructor.name
-    const { classWikiDict, dbChangesObj } = OrmStore.store
+    const { classWikiDict, mutationsLog } = OrmStore.store
     const classWiki = classWikiDict[instanceClassName]
 
     if (!uncalledRelationalProperties) {
         //new instance
-        dbChangesObj[instanceClassName] ??= {}
-        const newEntityChangeObj = dbChangesObj[instanceClassName][instance.id] ??= {}
+        mutationsLog[instanceClassName] ??= {}
+        const newEntityChangeObj = mutationsLog[instanceClassName][instance.id] ??= {}
 
         // const idVal = instance.id
         //newEntityChangeObj.id = typeof idVal === `bigint` ? idVal.toString() : idVal

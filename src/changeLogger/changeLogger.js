@@ -11,8 +11,8 @@ import { setImmediate } from "node:timers/promises"
 export class ChangeLogger {
     static scheduledFlush = false
     static flushChanges() {
-        const dbChangesObj = OrmStore.store.dbChangesObj
-        if (!Object.keys(dbChangesObj).length || this.scheduledFlush) return
+        const mutationsLog = OrmStore.store.mutationsLog
+        if (!Object.keys(mutationsLog).length || this.scheduledFlush) return
         this.scheduledFlush = true
         const func = async () => await ChangeLogger.save()
         //queueMicrotask(func)
@@ -21,7 +21,7 @@ export class ChangeLogger {
 
 
     static async save(/**@type {any}*/ instanceData = undefined) {
-        const { dbChangesObj: dbChanges, sqlClient, dbConnection } = OrmStore.store
+        const { mutationsLog: dbChanges, sqlClient, dbConnection } = OrmStore.store
         if (!Object.keys(dbChanges).length) return
         let changes2Organize
         let $deletedInstances, $deletedUnloadedRelations

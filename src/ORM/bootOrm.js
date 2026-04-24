@@ -498,7 +498,7 @@ export function linkClassWikis(classWikiDict, dependenciesObj, referencesObj) {
    }
 }
 
-export function createClassWiki(tableObj) {
+function getNameEscaper() {
    const escapeCharDict = {
       sqlite: '""',
       postgres: '""',
@@ -506,8 +506,11 @@ export function createClassWiki(tableObj) {
       SQLServer: '[]'
    }
    const escapeChars = escapeCharDict[OrmStore.store.sqlClient]
-   const escapeName = (name) => escapeChars[0] + name + escapeChars[1]
+   return (name) => escapeChars[0] + name + escapeChars[1]
+}
 
+export function createClassWiki(tableObj) {
+   const nameEscaper = getNameEscaper()
    const tableNames = Object.keys(tableObj)
    const classWikiDict = {}
    const dependenciesObj = {}
@@ -529,8 +532,8 @@ export function createClassWiki(tableObj) {
                // tableName: escapeName(type),
                $junctionInfo: {
                   junctionName: getJunctionName(tableName, propName),
-                  joining: escapeName('joiningId'),
-                  joined: escapeName('joinedId')
+                  joining: nameEscaper('joiningId'),
+                  joined: nameEscaper('joinedId')
                   // cantUnrelate: isArray && optional
                }
             }
@@ -547,7 +550,7 @@ export function createClassWiki(tableObj) {
             }
          }
          else {
-            target = columns[propName] = { type }
+            target = columns[propName] = { type, columnName: nameEscaper(propName) }
             if (type === `integer`) columns[propName].type = `number`
          }
          if ($isArray) target.$isArray = $isArray
@@ -555,7 +558,7 @@ export function createClassWiki(tableObj) {
       }
         /**@type {any}*/ const map = {
          $className: tableName,
-         $tableName: escapeName(tableName),
+         $tableName: nameEscaper(tableName),
          $junctions: junctions,
          $relationalProps: relationalProps,
          ...columns,
@@ -614,7 +617,7 @@ export function createJunctionColumnContext(tablesDict) {
 
 function formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient) {
    const newJunctionTable = {
-      name: getJunctionName(tableObj.name, nonSnake2Snake(columnObj.name)),
+      name: getJunctionName(tableObj.name, columnObj.name),
       columns: {}
    }
    const joiningIdTypeInDb = js2SqlTyping(sqlClient, tableObj.columns.id.type, true)
@@ -626,13 +629,13 @@ function formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient) {
    newJunctionTable.columns.joining = newJunctionTableColumn
 
    const joinedTableName = columnObj.type
-   const joinedTable = tablesDict[joinedTableName] || tablesDict[nonSnake2Snake(joinedTableName)]
+   const joinedTable = tablesDict[joinedTableName]
    const joinedIdTypeInDb = js2SqlTyping(sqlClient, joinedTable.columns.id.type, true)
 
    newJunctionTableColumn = {
       type: joinedIdTypeInDb,
       unique: false,
-      refTable: nonSnake2Snake(joinedTableName)
+      refTable: joinedTableName
    }
    newJunctionTable.columns.joined = newJunctionTableColumn
    return newJunctionTable
@@ -640,7 +643,8 @@ function formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient) {
 
 
 export function formatForCreation(tablesDict) {
-    /**@type {TABLE[]}*/ const formattedTables = []
+   const nameEscaper = getNameEscaper()
+   /**@type {TABLE[]}*/ const formattedTables = []
    const alterTableArr = []
    const sqlClient = OrmStore.store.sqlClient
 
@@ -657,17 +661,17 @@ export function formatForCreation(tablesDict) {
          junctions: []
       }
 
-      if (tableObj.parent && tableObj.parent.name !== 'entity') {
+      if (tableObj.parent && tableObj.parent.name !== 'Entity') {
          let currentParent = tableObj.parent
          while (currentParent.abstract && currentParent.parent) currentParent = currentParent.parent
-         if (currentParent.name !== 'entity') formattedTable.parent = tableObj.parent.name
+         if (currentParent.name !== 'Entity') formattedTable.parent = tableObj.parent.name
       }
 
       for (const columnObj of Object.values(tableObj.columns)) {
          if (columnObj.relational) formattedTable.junctions?.push(formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient))
          else {
             const { name, ...rest } = columnObj
-            formattedTable.columns[`${name}`] = rest
+            formattedTable.columns[`${name}`] = {columnName: nameEscaper(name), ...rest}
          }
       }
       formattedTables.push(formattedTable)

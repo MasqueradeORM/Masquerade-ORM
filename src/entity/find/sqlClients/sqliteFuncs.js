@@ -96,7 +96,7 @@ function createInstanceWiki(findWiki) {
 }
 
 
-function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entities) {
+function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entityFunctions) {
     const currentAlias = instanceWiki.alias
     const instanceId = rowObj[currentAlias + `_id`]
     if (!instanceId) return
@@ -104,7 +104,7 @@ function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entitie
     const currentClassName = instanceWiki.className
 
     if (!object4Nesting[instanceId]) {
-        const target = object4Nesting[instanceId] = Object.create(entities[currentClassName].prototype)
+        const target = object4Nesting[instanceId] = Object.create(entityFunctions[currentClassName].prototype)
         for (const [propertyName, columnTypeObj] of Object.entries(instanceWiki.columns)) {
             const val = rowObj[propertyName]
             target[columnTypeObj.propertyName] = val
@@ -113,26 +113,26 @@ function createNestedClassInstance(rowObj, instanceWiki, object4Nesting, entitie
 
     for (const junction of instanceWiki.junctions) {
         const target = object4Nesting[instanceId][junction.propertyName] ??= {}
-        createNestedClassInstance(rowObj, junction, target, entities)
+        createNestedClassInstance(rowObj, junction, target, entityFunctions)
     }
 }
 
 
-export function formatAndProxifyEntityInstance(instance, findWiki, entities, /**@type {any}*/ proxyArr = undefined) {
+export function formatAndProxifyEntityInstance(instance, findWiki, entityFunctions, /**@type {any}*/ proxyArr = undefined) {
     const junctionEntries = Object.entries(findWiki.junctions ?? {})
     for (const [junctionKey, junctionObj] of junctionEntries) {
         if (junctionObj.isArray) {
             instance[junctionKey] = Object.values(instance[junctionKey])
             if (!instance[junctionKey]) continue
-            for (const joinedInstance of instance[junctionKey]) formatAndProxifyEntityInstance(joinedInstance, junctionObj, entities)
+            for (const joinedInstance of instance[junctionKey]) formatAndProxifyEntityInstance(joinedInstance, junctionObj, entityFunctions)
         }
         else {
             instance[junctionKey] = Object.values(instance[junctionKey])[0]
             if (!instance[junctionKey]) continue
-            formatAndProxifyEntityInstance(instance[junctionKey], junctionObj, entities)
+            formatAndProxifyEntityInstance(instance[junctionKey], junctionObj, entityFunctions)
         }
     }
-    const proxy = rowObj2InstanceProxy(instance, findWiki, entities)
+    const proxy = rowObj2InstanceProxy(instance, findWiki, entityFunctions)
     if (proxyArr) proxyArr.push(proxy)
 }
 

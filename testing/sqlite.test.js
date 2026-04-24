@@ -16,7 +16,7 @@ const { House, Person, NonRelationalClass2 } = classes
 
 const configObj = createConfigObj(`sqlite`)
 await initORM(configObj, classes)
-let dbChanges = OrmStore.store.dbChangesObj
+let dbChanges = OrmStore.store.mutationsLog
 
 
 // const person1 = new classes.User('a', 'b', 'c')
@@ -133,7 +133,7 @@ test('test 1 - find basics and change logging', async (t) => {
 
     await House.find({})
     await initORM(configObj, classes)
-    dbChanges = OrmStore.store.dbChangesObj
+    dbChanges = OrmStore.store.mutationsLog
 
     undefinedTest = await House.find({
         where: { id: lastHouse.id },

@@ -50,7 +50,7 @@ export class ORM {
 async function universalBoot(classDict, classFuncs, /**@type {OrmConfigObj}*/ config) {
    configure(config)
    classDict.Entity = returnEntityClassObj()
-   OrmStore.store.entities = classFuncs
+   OrmStore.store.entityFunctions = classFuncs
    addChildrenToClasses(classDict)
    const branchesArr = createBranches(classDict)
    const tablesDict = createTableDict(branchesArr)
@@ -74,14 +74,16 @@ function configure(/**@type {OrmConfigObj}*/ configObj) {
 
    const sqlClient = detectDriver(dbConnection)
    if (!sqlClient) throw new Error("Invalid database connection instance.")
+  
    OrmStore.store = {
       idTypeDefault,
       dbConnection,
       sqlClient,
-      dbChangesObj: {},
+      mutationsLog: {},
       entityMapsObj: {},
       dependentsMapsObj: {},
-      entities: undefined
+       //@ts-ignore
+      entityFunctions: undefined
    }
 }
 

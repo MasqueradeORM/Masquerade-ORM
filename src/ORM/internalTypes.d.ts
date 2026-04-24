@@ -2,6 +2,7 @@
 
 export interface Column {
   type: string
+  columnName: string
   $isArray?: boolean
   $optional?: boolean
 }

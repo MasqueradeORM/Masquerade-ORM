@@ -14,10 +14,10 @@ export function logSuccessfulSave() {
 }
 
 export function relogFailedChanges(failedChanges) {
-   const { dbChangesObj } = OrmStore.store
+   const { mutationsLog } = OrmStore.store
    for (const [key, data2Merge] of Object.entries(failedChanges)) {
-      if (dbChangesObj[key]) {
-         const obj2Merge2 = dbChangesObj[key]
+      if (mutationsLog[key]) {
+         const obj2Merge2 = mutationsLog[key]
          if (key === '$deletedUnloadedRelations') {
             for (const [tableName, { idType, params: ids }] of Object.entries(data2Merge)) {
                const target = obj2Merge2[tableName]
@@ -46,7 +46,7 @@ export function relogFailedChanges(failedChanges) {
             }
          }
       }
-      else dbChangesObj[key] = data2Merge
+      else mutationsLog[key] = data2Merge
    }
 }
 

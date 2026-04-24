@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 
-import type { FindObj } from "../misc/types"
+import type { FindObj, ClassSettings } from "../misc/types"
+
 
 export declare class Entity {
   id: string | number | bigint

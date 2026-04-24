@@ -10,7 +10,7 @@ import { postgresCreateProxyArray } from "../find/sqlClients/postgresFuncs.js"
 import { sqliteCreateProxyArray } from "../find/sqlClients/sqliteFuncs.js"
 
 export async function internalFind(dependentWiki, relationalProps, searchedId) {
-    const { sqlClient, dbConnection, entities } = OrmStore.store
+    const { sqlClient, dbConnection, entityFunctions } = OrmStore.store
     const baseProxyMap = classWiki2ScopeProxy({ ...dependentWiki })
     let findWiki = deproxifyScopeProxy(baseProxyMap)
     const eagerLoadObj = {}
@@ -22,8 +22,8 @@ export async function internalFind(dependentWiki, relationalProps, searchedId) {
     queryString = queryString.replace(/\bAND\b/g, `OR`)
     const queryResult = await executeFindQuery(queryString, statementsObj.params, dbConnection, sqlClient)
     const instanceArr = sqlClient === "postgres" ?
-        postgresCreateProxyArray(queryResult, eagerLoadWiki, entities, eagerLoadObj) :
-        sqliteCreateProxyArray(queryResult, eagerLoadWiki, entities, true)
+        postgresCreateProxyArray(queryResult, eagerLoadWiki, entityFunctions, eagerLoadObj) :
+        sqliteCreateProxyArray(queryResult, eagerLoadWiki, entityFunctions, true)
 
     return instanceArr
 }

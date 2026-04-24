@@ -16,7 +16,7 @@ const { House, Person, NonRelationalClass2 } = classes
 const configObj = createConfigObj('postgres', '92819230')
 await resetPostgresDb(configObj.dbConnection)
 await initORM(configObj, classes)
-let dbChanges = OrmStore.store.dbChangesObj
+let dbChanges = OrmStore.store.mutationsLog
 generateFamiliesAndHouses()
 for (let i = 0; i < 3; i++) new NonRelationalClass2()
   
@@ -122,7 +122,7 @@ test('test 1 - find basics and change logging', async (t) => {
   lastHouse.tenants = undefined
   await House.find({})
   await initORM(configObj, classes)
-  dbChanges = OrmStore.store.dbChangesObj
+  dbChanges = OrmStore.store.mutationsLog
 
   undefinedTest = await House.find({
     where: { id: lastHouse.id },

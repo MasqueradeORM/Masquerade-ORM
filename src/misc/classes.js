@@ -101,7 +101,7 @@ export class LazyPromise {
       addedIds[item.id] = true
     }
 
-    const changesObj = OrmStore.store.dbChangesObj
+    const changesObj = OrmStore.store.mutationsLog
     changesObj[instanceClass] ??= {}
     const instanceChangeObj = changesObj[instanceClass][instanceId] ??= {}
     const relationsLogger = instanceChangeObj[property] ??= { add: {}, remove: {} }
