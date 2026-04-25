@@ -11,7 +11,6 @@ export interface Junction {
   joining: string
   joined: string
   junctionName: string
-  cantUnrelate?: boolean
 }
 
 export interface ClassWikiBase {
@@ -20,6 +19,7 @@ export interface ClassWikiBase {
   $relationalProps: string[]
   $isArray?: boolean
   $optional?: boolean
+  $cantUnrelate?: string
   $junctionInfo?: Junction
   $referencers?: Record<string, string[]>
   $dependents?: Record<string, string[]>

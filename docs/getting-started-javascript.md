@@ -47,7 +47,7 @@ class Example extends Entity {
     /** @type {Chat[] | undefined} */ optionalChats
 }
 ```
-Each relational property will create a junction table named `className___propName_jt`.
+Each relational property will create a junction table named `className_propName__jt`.
 
 
 ** **For more in-depth documentation regarding class definitions **[click here](https://github.com/MasqueradeORM/MasqueradeORM/blob/master/docs/in-depth-class-definitions.md)**.** **

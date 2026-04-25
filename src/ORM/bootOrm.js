@@ -10,6 +10,7 @@ import { DbManagerStore } from "../dbManager/DbManagerStore.js"
 import { OrmStore } from "../misc/ormStore.js"
 /**@typedef {import('../misc/types.js').TABLE} TABLE */
 /**@typedef {import('../misc/types.js').DbPrimaryKey} DbPrimaryKey */
+/**@typedef {import('./internalTypes.js').ClassWiki} ClassWiki */
 
 
 export async function compareAgainstDb(tablesDict) {
@@ -84,7 +85,7 @@ export async function compareAgainstDb(tablesDict) {
          coloredBackgroundConsoleLog(`Warning: Unused columns found in table '${tableName}' (${className}): ${loggedArr}. Consider removing them manually or using DbManager\`s 'dropUnusedColumns' method.\n`, "warning")
       }
    }
-   const unusedJunctions = dbTableNames.filter(tableName => tableName.includes(`___`) && tableName.endsWith(`_jt`))
+   const unusedJunctions = dbTableNames.filter(tableName => tableName.endsWith(`__jt`))
    const unusedTables = dbTableNames.filter(tableName => !unusedJunctions.includes(tableName)).map(tableName => `"${tableName}"`)
    if (unusedTables.length) {
       coloredBackgroundConsoleLog(`Warning: The following entity tables are unused: ${array2String(unusedTables)}. Consider removing them manually or using DbManager\`s 'dropUnusedTables' method.\n`, "warning")
@@ -441,7 +442,7 @@ function addRefersOrDeps(added, to) {
    }
 }
 
-export function linkClassWikis(classWikiDict, dependenciesObj, referencesObj) {
+export function linkClassWikis(classWikiDict, dependenciesObj, referencesObj, twoWayRelations) {
    for (const classWiki of Object.values(classWikiDict)) {
       const {
          $className: className,
@@ -496,6 +497,8 @@ export function linkClassWikis(classWikiDict, dependenciesObj, referencesObj) {
       }
       delete classWiki.$junctions
    }
+
+   bindRelations(twoWayRelations, classWikiDict)
 }
 
 function getNameEscaper() {
@@ -506,21 +509,28 @@ function getNameEscaper() {
       SQLServer: '[]'
    }
    const escapeChars = escapeCharDict[OrmStore.store.sqlClient]
+
+   /**
+    * @returns {string}
+    */
    return (name) => escapeChars[0] + name + escapeChars[1]
 }
 
-export function createClassWiki(tableObj) {
+export function createClassWiki(tablesDict) {
    const nameEscaper = getNameEscaper()
-   const tableNames = Object.keys(tableObj)
    const classWikiDict = {}
    const dependenciesObj = {}
    const referencesObj = {}
+   const twoWayRelations = {}
 
-   for (const tableName of tableNames) {
-      const table = tableObj[tableName]
+   for (const [tableName, { specialSettings, ...table }] of Object.entries(tablesDict)) {
       const junctions = {}
       const columns = {}
       const relationalProps = []
+      if (specialSettings && specialSettings.twoWayRelations) {
+         twoWayRelations[tableName] = specialSettings.twoWayRelations
+      }
+
       for (const columnObj of Object.values(table.columns)) {
          const propName = columnObj.name
          const { type, isArray: $isArray, nullable: $optional } = columnObj
@@ -529,9 +539,8 @@ export function createClassWiki(tableObj) {
             relationalProps.push(propName)
             target = junctions[propName] = {
                $className: type,
-               // tableName: escapeName(type),
                $junctionInfo: {
-                  junctionName: getJunctionName(tableName, propName),
+                  junctionName: nameEscaper(getJunctionName(tableName, propName)),
                   joining: nameEscaper('joiningId'),
                   joined: nameEscaper('joinedId')
                   // cantUnrelate: isArray && optional
@@ -567,9 +576,121 @@ export function createClassWiki(tableObj) {
       classWikiDict[tableName] = map
    }
 
-   linkClassWikis(classWikiDict, dependenciesObj, referencesObj)
-   //@ts-ignore
+   linkClassWikis(classWikiDict, dependenciesObj, referencesObj, twoWayRelations)
+   // @ts-ignore
    OrmStore.store.classWikiDict = classWikiDict
+}
+
+/**
+ * @param {ClassWiki} masterWiki - Wiki of the property being processed
+ * @param {ClassWiki} targetWiki - Wiki of the property being pointed to
+ * @param {string} masterProp - Name of the property being processed
+ * @param {string} targetProp - Name of the property being pointed to
+ */
+function applyUnrelateConstraints(masterWiki, targetWiki, masterProp, targetProp) {
+   // A side is 'Flexible' if it can be empty (Optional) or has many (Array)
+   const masterIsFlexible = masterWiki.$isArray || masterWiki.$optional
+   const targetIsFlexible = targetWiki.$isArray || targetWiki.$optional
+
+   // XOR: We only restrict de-association if one side is 'Stuck' (Mandatory) 
+   // and the other is 'Free' (Flexible).
+   if (masterIsFlexible !== targetIsFlexible) {
+      let masterClass = masterWiki.$className
+      let targetClass = targetWiki.$className
+      // If the Master is the flexible one, the Target is the one that's stuck
+      if (masterIsFlexible) {
+         const stuckClass = targetClass
+         const stuckProp = targetProp
+         const privilegedClass = masterClass
+         const privilegedProp = masterProp
+         const isPlural = targetWiki.$isArray
+
+         targetWiki.$cantUnrelate = `${stuckClass} cannot deassociate from ${privilegedClass} instance${isPlural ? 's' : ''} via the '${stuckProp}' property. To deassociate, you must do so from ${privilegedClass}.${privilegedProp}.`
+      }
+      // If the Master is mandatory, it's the one that's stuck
+      else {
+         const stuckClass = masterClass
+         const stuckProp = masterProp
+         const privilegedClass = targetClass
+         const privilegedProp = targetProp
+         const isPlural = masterWiki.$isArray
+
+         masterWiki.$cantUnrelate = `${stuckClass} cannot deassociate from ${privilegedClass} instance${isPlural ? 's' : ''} via the '${stuckProp}' property. To deassociate, you must do so from ${privilegedClass}.${privilegedProp}.`
+      }
+   }
+}
+
+/**
+ * @param {ClassWiki} binderWiki 
+ * @param {ClassWiki} bindedWiki 
+ * @param {string} bindingProp 
+ * @param {string} bindedProp
+ * @param {function} nameEscaper
+ */
+function updateJunctionInfo(binderWiki, bindedWiki, bindingProp, bindedProp, nameEscaper) {
+   const newJunctionName = nameEscaper(`${binderWiki.$className}_${bindingProp}__${bindedWiki.$className}_${bindedProp}__jt`)
+   const bindingIdCol = nameEscaper(binderWiki.$className + '_id')
+   const bindedIdCol = nameEscaper(bindedWiki.$className + '_id')
+   if (bindedWiki.$junctionInfo) bindedWiki.$junctionInfo.joined = bindedIdCol
+   if (bindedWiki.$junctionInfo) bindedWiki.$junctionInfo.joining = bindingIdCol
+   if (bindedWiki.$junctionInfo) bindedWiki.$junctionInfo.junctionName = newJunctionName
+   if (binderWiki.$junctionInfo) binderWiki.$junctionInfo.joined = bindingIdCol
+   if (binderWiki.$junctionInfo) binderWiki.$junctionInfo.joining = bindedIdCol
+   if (binderWiki.$junctionInfo) binderWiki.$junctionInfo.junctionName = newJunctionName
+}
+
+function successfulBind(binderWiki, bindedWiki, bindingProp, bindedProp, nameEscaper, successfullyBinded) {
+   updateJunctionInfo(binderWiki, bindedWiki, bindingProp, bindedProp, nameEscaper)
+   applyUnrelateConstraints(binderWiki, bindedWiki, bindingProp, bindedProp)
+   successfullyBinded[bindedWiki.$className] ??= {}
+   successfullyBinded[bindedWiki.$className][bindedProp] = true
+}
+
+function bindRelations(twoWayRelations, /**@type {Record<string, ClassWiki>}*/ classWikiDict) {
+   const nameEscaper = getNameEscaper()
+   const bindedPropsDict = {}
+   const successfullyBinded = {}
+   for (const [className, bindedRelations] of Object.entries(twoWayRelations)) {
+      const classWiki = classWikiDict[className]
+      const bindingClsBindedProps = bindedPropsDict[className] ??= {}
+
+      for (const [bindingProp, bindedProp] of Object.entries(bindedRelations)) {
+         if (successfullyBinded[className]?.[bindingProp]) continue
+         // 1. Check if the local property is already tied to a different relation
+         if (bindingClsBindedProps[bindingProp]) {
+            const { class: bindClassName, prop } = bindingClsBindedProps[bindingProp]
+            throw new Error(`Conflict in ${className}: Property "${bindingProp}" is already assigned to a two-way relationship (${bindClassName}.${prop}).`)
+         }
+      // @ts-ignore
+         /**@type {ClassWiki}*/ const bindedWiki = classWiki[bindingProp]
+         bindingClsBindedProps[bindingProp] = { class: bindedWiki.$className, prop: bindedProp }
+         // 2. Validate that the remote property actually points back to this class type
+         // @ts-ignore
+         /**@type {ClassWiki}*/ const binderWiki = bindedWiki[bindedProp] // same as classWiki except it has the junction info of the bindedWiki
+         if (binderWiki.$className !== className) {
+            throw new Error(`Type Mismatch: ${className}.${bindingProp} points to ${bindedWiki.$className}.${bindedProp}, but that property's type is not "${className}".`)
+         }
+
+         const bindedClsBindedProps = bindedPropsDict[bindedWiki.$className] ??= {}
+
+         // 3. Check if the remote property is already occupied
+         if (bindedClsBindedProps[bindedProp]) {
+            const { class: bindClassName, prop } = bindedClsBindedProps[bindedProp]
+            throw new Error(`Conflict in ${bindedWiki.$className}: Property "${bindedProp}" is already being used by another relationship (${bindClassName}.${prop}) and cannot bind to ${className}.${bindingProp}.`)
+         }
+         bindedClsBindedProps[bindedProp] = { class: className, prop: bindingProp }
+
+         const binded2WayRelations = twoWayRelations[bindedWiki.$className]
+
+         // 4. If the other side DID declare a binding, verify it matches this one
+         if (binded2WayRelations && binded2WayRelations[bindedProp]) {
+            if (binded2WayRelations[bindedProp] !== bindingProp) {
+               throw new Error(`Handshake Failed: ${className} says "${bindingProp}" links to ${bindedWiki.$className}."${bindedProp}", but ${bindedWiki.$className} claims "${bindedProp}" links to "${binded2WayRelations[bindedProp]}".`)
+            } else successfulBind(binderWiki, bindedWiki, bindingProp, bindedProp, nameEscaper, successfullyBinded)
+         }
+         else successfulBind(binderWiki, bindedWiki, bindingProp, bindedProp, nameEscaper, successfullyBinded)
+      }
+   }
 }
 
 
@@ -671,7 +792,7 @@ export function formatForCreation(tablesDict) {
          if (columnObj.relational) formattedTable.junctions?.push(formatRelationalColumnObj(tableObj, columnObj, tablesDict, sqlClient))
          else {
             const { name, ...rest } = columnObj
-            formattedTable.columns[`${name}`] = {columnName: nameEscaper(name), ...rest}
+            formattedTable.columns[`${name}`] = { columnName: nameEscaper(name), ...rest }
          }
       }
       formattedTables.push(formattedTable)

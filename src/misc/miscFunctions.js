@@ -158,5 +158,5 @@ export function getJunctionName(
     propertyName
 
 ) {
-    return `${baseTableName}_${nonSnake2Snake(propertyName)}_jt`
+    return `${baseTableName}_${propertyName}__jt`
 }
